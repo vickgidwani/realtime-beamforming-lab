@@ -54,7 +54,12 @@ Mach's docs specify IQ input as contiguous `(elements, samples, frames)` arrays 
 
 ## Requirements
 
-The CUDA benchmark requires Linux, an NVIDIA GPU, a compatible driver and CUDA toolkit, and a GPU with compute capability 7.5 or newer. The current mach wheel documents CUDA driver 12.8 or newer and glibc 2.34 or newer. A Mac can be used to read and edit the project, but the CUDA path must run on an NVIDIA host or GPU-enabled remote environment.
+The CUDA benchmark requires Python 3.11+, Linux, an NVIDIA GPU with compute capability 7.5 or newer, and a compatible driver. The current mach wheel requires CUDA driver 12.8 or newer and glibc 2.34 or newer. A Mac can be used to read and edit the project, but the CUDA path must run on an NVIDIA host or GPU-enabled remote environment.
+
+Use two environments for this experiment:
+
+- **Google Colab for setup and smoke checks.** Select a GPU runtime, install the project, confirm `nvidia-smi` and run each dataset for a few iterations. Colab's GPU type, availability, and session limits vary, so use those results to check installation, loading, and numerical output rather than to compare tail latency. See the [Colab FAQ](https://research.google.com/colaboratory/faq.html).
+- **RunPod or Lambda for profiling and benchmark results.** Use a Linux single-GPU instance that meets the requirements above. Put the checkout, reports, and profiler traces on persistent storage, such as a RunPod network volume or an attached Lambda filesystem. The dataset cache is managed by the libraries and may live on ephemeral storage, so it can be downloaded again after replacing the instance. Use one instance/GPU type for each comparison, record its runtime metadata, and run unprofiled latency measurements separately from short Nsight Systems captures. See [RunPod Pod connections](https://docs.runpod.io/pods/connect-to-a-pod), [RunPod network volumes](https://docs.runpod.io/storage/network-volumes), [Lambda On-Demand Cloud](https://docs.lambda.ai/public-cloud/on-demand/), [Lambda filesystems](https://docs.lambda.com/public-cloud/filesystems/), and NVIDIA's [Nsight Systems install guide](https://docs.nvidia.com/nsight-systems/InstallationGuide/).
 
 ```bash
 python -m venv .venv
@@ -65,6 +70,45 @@ python -m pip install -e '.[gpu]'
 The optional dependency group includes mach's example dependencies: PyMUST for RF-to-IQ conversion, `pyuff-ustb` for PICMUS UFF input, and CuPy for the GPU-resident comparison path.
 
 ## Run it
+
+### Colab: install and verify the pipeline
+
+In Colab, choose **Runtime → Change runtime type → GPU**, then run these cells. The short runs are smoke checks; their latency numbers are not a benchmark.
+
+```python
+!git clone https://github.com/vickgidwani/realtime-beamforming-lab.git
+%cd realtime-beamforming-lab
+%pip install -e '.[gpu]'
+!nvidia-smi
+```
+
+```python
+!beamform-lab benchmark --dataset pymust --mode cupy --runs 2 --warmup 0 \
+  --batch-size 32 --output artifacts/colab-pymust.json
+
+!beamform-lab benchmark --dataset picmus --mode cupy --runs 1 --warmup 0 \
+  --save-image artifacts/colab-picmus.npy \
+  --output artifacts/colab-picmus.json
+```
+
+Colab runtimes are temporary. Download any JSON reports or image arrays you want to keep before disconnecting; the datasets can be downloaded again on the next runtime.
+
+### RunPod or Lambda: measure and profile
+
+Attach or mount persistent storage when creating the instance, then run the commands from that mount point. This keeps the checkout and benchmark artifacts when the GPU instance is stopped or replaced. On Lambda, attach the filesystem at instance launch; RunPod network volumes can be attached to Pods. Clone the repository, install the same optional dependencies, and record the exact environment before measuring:
+
+```bash
+git clone https://github.com/vickgidwani/realtime-beamforming-lab.git
+cd realtime-beamforming-lab
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[gpu]'
+nvidia-smi
+mkdir -p artifacts
+python -m pip freeze > artifacts/pip-freeze.txt
+```
+
+Run the host-array and GPU-resident paths on the same instance. Use a longer unprofiled run for latency percentiles and save the JSON, image, and environment record on the instance's persistent storage:
 
 ```bash
 beamform-lab benchmark --mode numpy --runs 200 --batch-size 32 \
@@ -80,6 +124,15 @@ beamform-lab benchmark --dataset picmus --mode numpy --runs 20 --warmup 2 \
 beamform-lab benchmark --dataset picmus --mode cupy --runs 20 --warmup 2 \
   --save-image artifacts/picmus-device.npy --output artifacts/picmus-device.json
 ```
+
+Then capture a short Nsight Systems trace to inspect copies, synchronization, and GPU gaps. Tracing adds overhead, so don't use traced runs for the final latency percentiles:
+
+```bash
+nsys profile --trace=cuda,nvtx,osrt --output=artifacts/picmus-cupy \
+  beamform-lab benchmark --dataset picmus --mode cupy --runs 3 --warmup 1
+```
+
+If `nsys` is not installed on the instance, install the CLI using NVIDIA's [Nsight Systems guide](https://docs.nvidia.com/nsight-systems/InstallationGuide/). Keep traces and result files outside the Git checkout or in its ignored `artifacts/` directory; download them before terminating the instance.
 
 Mach downloads and caches the PyMUST raw-RF sample on the first run. `--dataset picmus` downloads the 145.5 MB PICMUS UFF file and verifies its expected SHA-256; later runs reuse the cache. Try PyMUST `--batch-size 1`, `4`, `8`, and `32` to see how launch overhead, chunk copies, and the number of calls change. The default PyMUST 251 × 251 scan grid has 63,001 points; use `--grid-size` to change the grid. PICMUS uses its native 387 × 609 scan and compounds all 75 angles per run; `--batch-size` and `--grid-size` apply only to PyMUST.
 
