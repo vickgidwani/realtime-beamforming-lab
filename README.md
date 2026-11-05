@@ -1,6 +1,6 @@
 # Realtime Beamforming Lab
 
-A small project for practicing the latency-critical part of the Bridge Neurotech role: turning raw ultrasound channel data into beamformed images on a CUDA GPU. It starts with a real raw-RF dataset and runs RF-to-IQ conversion, GPU delay-and-sum beamforming with [mach](https://github.com/Forest-Neurotech/mach), and Power Doppler accumulation.
+A personal exploration of latency-critical processing for raw ultrasound channel data. It starts with a real raw-RF dataset and runs RF-to-IQ conversion, GPU delay-and-sum beamforming with [mach](https://github.com/Forest-Neurotech/mach), and Power Doppler accumulation.
 
 ## Is this fUSI?
 
@@ -8,7 +8,7 @@ No. The included sample is the PyMUST rotating-disk Doppler phantom used in mach
 
 I could not find a comparably small, public fUSI recording that still contains raw per-element channel data. Public fUSI examples commonly distribute reconstructed Doppler volumes; those cannot be beamformed again. ConfUSIus documents the Nunez-Elizalde dataset as Power Doppler data, while some raw Iconeus formats are not publicly documented. This project uses raw RF so beamforming is real work in the pipeline. A later data adapter can target a public brain-ultrasound channel dataset if you want the biological domain as a second step.
 
-The phantom lets you practice array layout, RF demodulation, transmit/receive geometry, CUDA delay-and-sum, GPU memory transfers, batching, and tail-latency measurement. It does **not** reproduce Bridge's probe geometry, fUSI acquisition, clutter-filtering choices, neural decoding model, or production latency targets.
+The phantom lets you explore array layout, RF demodulation, transmit/receive geometry, CUDA delay-and-sum, GPU memory transfers, batching, and tail-latency measurement. It does **not** represent a brain recording or reproduce a clinical acquisition, clutter-filtering workflow, neural decoding model, or production latency target.
 
 ## Pipeline
 
