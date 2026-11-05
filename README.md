@@ -1,26 +1,43 @@
 # Realtime Beamforming Lab
 
-A personal exploration of latency-critical processing for raw ultrasound channel data. It starts with a real raw-RF dataset and runs RF-to-IQ conversion, GPU delay-and-sum beamforming with [mach](https://github.com/Forest-Neurotech/mach), and Power Doppler accumulation.
+A personal exploration of latency-sensitive ultrasound processing. The project follows the raw-channel-data path that feeds functional ultrasound imaging (fUSI): RF-to-IQ conversion, image reconstruction with GPU delay-and-sum beamforming, and a Power Doppler-style output. It uses public phantom data so those computational stages can be studied without a brain recording or ultrasound hardware.
 
-## Is this fUSI?
+## How fUSI processing works
 
-No. The included sample is the PyMUST rotating-disk Doppler phantom used in mach's own example. It is real raw ultrasound RF data with known probe geometry and a controlled Doppler target, but it is not brain data. The sample is small (about 2.1 MB), making it practical to download and reproduce. The benchmark follows the same RF-to-IQ and CUDA beamforming path as the mach example.
+fUSI tracks changes in ultrasound speckle caused in part by moving blood cells. A common processing path is:
 
-I could not find a comparably small, public fUSI recording that still contains raw per-element channel data. Public fUSI examples commonly distribute reconstructed Doppler volumes; those cannot be beamformed again. ConfUSIus documents the Nunez-Elizalde dataset as Power Doppler data, while some raw Iconeus formats are not publicly documented. This project uses raw RF so beamforming is real work in the pipeline. A later data adapter can target a public brain-ultrasound channel dataset if you want the biological domain as a second step.
+1. **Acquire repeated plane-wave channel data.** An array transmits unfocused plane waves and records the returning RF signal at each element. Multiple steering angles may be acquired for each time point.
+2. **Convert RF to complex IQ.** Demodulation moves the signal to baseband while preserving phase information used in Doppler processing.
+3. **Reconstruct an image sequence.** Delay-and-sum (DAS) beamforming maps channel samples onto image locations. With multiple transmit angles, the complex images can be coherently compounded.
+4. **Suppress tissue clutter and motion.** Motion correction and temporal/spatiotemporal filters, often based on singular value decomposition (SVD), help separate blood-related signal from tissue and bulk motion.
+5. **Estimate Power Doppler over time.** A temporal statistic of the filtered complex images highlights moving-scatterer activity. The resulting maps can then be analyzed over time or related to a task or stimulus.
 
-The phantom lets you explore array layout, RF demodulation, transmit/receive geometry, CUDA delay-and-sum, GPU memory transfers, batching, and tail-latency measurement. It does **not** represent a brain recording or reproduce a clinical acquisition, clutter-filtering workflow, neural decoding model, or production latency target.
+This is a shared outline rather than a single mandated recipe: acquisition sequences, clutter filters, and Power Doppler estimators vary. The [fUSI processing overview](https://www.neuroai.science/p/functional-ultrasound-imaging-from) is the main conceptual reference for this project; the [mach Doppler example](https://forest-neurotech.github.io/mach/examples/doppler.html) documents the raw-RF-to-beamformed-Doppler path used for the active sample.
 
-## Pipeline
+## Data in this project
+
+The raw datasets are downloaded or cached locally and are not checked into Git. The active dataset and planned extension are complementary: one is a small controlled Doppler workload, while the other is a larger multi-angle beamforming benchmark.
+
+| Dataset | What it contains | Questions it lets us ask |
+| --- | --- | --- |
+| **PyMUST rotating-disk phantom** — active | About 2.1 MB of measured raw RF channel data from a tissue-mimicking phantom with a rotating disk that creates controlled Doppler shifts. The example describes a 128-element array, 334 fast-time samples, 32 slow-time frames, and 10 kHz PRF. The current loader uses a 0° plane-wave geometry. | Can RF-to-IQ, DAS, and a Doppler-style reduction be checked end to end? How much time is spent in conversion, copies, kernel launches, and reduction? How do batch size and host-versus-GPU-resident arrays affect throughput and tail latency on a repeatable small workload? |
+| **PICMUS experimental resolution/distortion phantom** — planned adapter | About 146 MB of experimental phantom channel data in UFF format. The mach example describes a 128-element, 5.2 MHz array and 75 plane-wave transmissions from −16° to +16° for the resolution dataset. It is not currently loaded by this project. | How does runtime and memory traffic scale with many transmit angles? Does multi-angle coherent compounding match expected target geometry and image quality? Which beamforming and data-movement costs appear on a larger standardized channel-data workload? |
+
+The PyMUST sample is useful for temporal Doppler accumulation and repeatable latency experiments; PICMUS is intended for multi-angle compounding and image-quality checks. Neither is a brain fUSI recording, so they support ultrasound-pipeline and systems questions rather than biological or task-decoding conclusions. See [DATA_PROVENANCE.md](DATA_PROVENANCE.md) for source versions, citations, transformations, and licensing notes. The [USTB dataset catalog](https://unioslo.github.io/USTB/datasets.html) lists the PICMUS files as channel data, and mach's [plane-wave compounding example](https://forest-neurotech.github.io/mach/examples/plane_wave_compound.html) demonstrates a loader and beamforming workflow for the 75-angle sample.
+
+## Current benchmark pipeline
 
 ```mermaid
 flowchart LR
-    A[Raw RF acquisitions] --> B[RF to IQ conversion]
+    A[PyMUST raw RF phantom] --> B[RF to complex IQ]
     B --> C[Reorder and batch channel arrays]
-    C --> D[Mach CUDA delay-and-sum beamforming]
-    D --> E[Power Doppler accumulation]
+    C --> D[Mach CUDA 0-degree DAS beamforming]
+    D --> E[Sum squared IQ magnitude over 32 frames]
     E --> F[Latency, throughput, and deadline report]
     C -. NumPy host arrays or CuPy resident arrays .-> D
 ```
+
+The active implementation covers the raw-data-to-Doppler front end: it beamforms the 32-frame phantom ensemble and sums squared complex-IQ magnitude. It does not yet perform multi-angle coherent compounding, motion correction, SVD clutter filtering, or task-level functional analysis. Those are natural extensions for moving from a systems microbenchmark toward a fuller fUSI processing workflow.
 
 The benchmark compares two input paths:
 
