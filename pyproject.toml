@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "realtime-beamforming-lab"
+version = "0.1.0"
+description = "Raw-RF ultrasound beamforming and latency practice with mach"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+  "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+gpu = [
+  "mach-beamform[all]>=0.2.1",
+  "cupy-cuda12x>=13.0",
+]
+
+[project.scripts]
+beamform-lab = "beamforming_lab.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
