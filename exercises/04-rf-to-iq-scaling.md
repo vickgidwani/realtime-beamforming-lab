@@ -1,4 +1,4 @@
-# Exercise 3: RF-to-IQ preprocessing scale
+# Exercise 4: RF-to-IQ preprocessing scale
 
 **Status: planned.** The current CLI measures RF-to-IQ conversion once during workload setup; it does not yet sweep preprocessing workers or implementations.
 

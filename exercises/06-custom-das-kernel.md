@@ -1,4 +1,4 @@
-# Exercise 5: custom delay-and-sum kernel
+# Exercise 6: custom delay-and-sum kernel
 
 **Status: planned.** The current project calls the prebuilt `mach` kernel; its internal block and memory-access implementation is not tuned by this repository.
 

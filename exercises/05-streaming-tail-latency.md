@@ -1,4 +1,4 @@
-# Exercise 4: streaming overlap and tail latency
+# Exercise 5: streaming overlap and tail latency
 
 **Status: planned.** The current benchmark repeats complete ensembles; it does not model a live producer/consumer queue.
 

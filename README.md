@@ -16,14 +16,14 @@ This is a shared outline rather than a single mandated recipe: acquisition seque
 
 ## Data in this project
 
-The raw datasets are downloaded or cached locally and are not checked into Git. The active dataset and planned extension are complementary: one is a small controlled Doppler workload, while the other is a larger multi-angle beamforming benchmark.
+The raw datasets are downloaded or cached locally and are not checked into Git. The two selectable inputs are complementary: one is a small controlled Doppler workload, while the other is a larger multi-angle beamforming benchmark.
 
 | Dataset | What it contains | Questions it lets us ask |
 | --- | --- | --- |
 | **PyMUST rotating-disk phantom** — active | About 2.1 MB of measured raw RF channel data from a tissue-mimicking phantom with a rotating disk that creates controlled Doppler shifts. The example describes a 128-element array, 334 fast-time samples, 32 slow-time frames, and 10 kHz PRF. The current loader uses a 0° plane-wave geometry. | Can RF-to-IQ, DAS, and a Doppler-style reduction be checked end to end? How much time is spent in conversion, copies, kernel launches, and reduction? How do batch size and host-versus-GPU-resident arrays affect throughput and tail latency on a repeatable small workload? |
-| **PICMUS experimental resolution/distortion phantom** — planned adapter | About 146 MB of experimental phantom channel data in UFF format. The mach example describes a 128-element, 5.2 MHz array and 75 plane-wave transmissions from −16° to +16° for the resolution dataset. It is not currently loaded by this project. | How does runtime and memory traffic scale with many transmit angles? Does multi-angle coherent compounding match expected target geometry and image quality? Which beamforming and data-movement costs appear on a larger standardized channel-data workload? |
+| **PICMUS experimental resolution/distortion phantom** — selectable | About 146 MB of experimental phantom channel data in UFF format. The mach example describes a 128-element array and 75 plane-wave transmissions from −16° to +16° for the resolution dataset. It is loaded and coherently compounded through mach's UFF adapter. | How does runtime and memory traffic scale with many transmit angles? Does multi-angle coherent compounding match expected target geometry and image quality? Which beamforming and data-movement costs appear on a larger standardized channel-data workload? |
 
-The PyMUST sample is useful for temporal Doppler accumulation and repeatable latency experiments; PICMUS is intended for multi-angle compounding and image-quality checks. Neither is a brain fUSI recording, so they support ultrasound-pipeline and systems questions rather than biological or task-decoding conclusions. See [DATA_PROVENANCE.md](DATA_PROVENANCE.md) for source versions, citations, transformations, and licensing notes. The [USTB dataset catalog](https://unioslo.github.io/USTB/datasets.html) lists the PICMUS files as channel data, and mach's [plane-wave compounding example](https://forest-neurotech.github.io/mach/examples/plane_wave_compound.html) demonstrates a loader and beamforming workflow for the 75-angle sample.
+The PyMUST sample is useful for temporal Doppler accumulation and repeatable latency experiments; PICMUS is useful for multi-angle compounding and image-quality checks. Neither is a brain fUSI recording, so they support ultrasound-pipeline and systems questions rather than biological or task-decoding conclusions. See [DATA_PROVENANCE.md](DATA_PROVENANCE.md) for source versions, citations, transformations, and licensing notes. The [USTB dataset catalog](https://unioslo.github.io/USTB/datasets.html) lists the PICMUS files as channel data, and mach's [plane-wave compounding example](https://forest-neurotech.github.io/mach/examples/plane_wave_compound.html) demonstrates the 75-angle workflow.
 
 ## Current benchmark pipeline
 
@@ -37,12 +37,18 @@ flowchart LR
     C -. NumPy host arrays or CuPy resident arrays .-> D
 ```
 
-The active implementation covers the raw-data-to-Doppler front end: it beamforms the 32-frame phantom ensemble and sums squared complex-IQ magnitude. It does not yet perform multi-angle coherent compounding, motion correction, SVD clutter filtering, or task-level functional analysis. Those are natural extensions for moving from a systems microbenchmark toward a fuller fUSI processing workflow.
+The default PyMUST path covers a raw-data-to-Doppler front end: it beamforms the 32-frame phantom ensemble and sums squared complex-IQ magnitude. It does not perform multi-angle coherent compounding, motion correction, SVD clutter filtering, or task-level functional analysis. The PICMUS path adds multi-angle compounding on a separate single-frame image-quality workload.
+
+## Role of Forest Neurotech and mach
+
+[mach](https://github.com/Forest-Neurotech/mach) is Forest Neurotech's open-source CUDA-accelerated delay-and-sum beamforming library. It is the GPU beamforming engine used by this project: the PyMUST path calls its single-wave kernel, while the PICMUS path calls `mach.experimental.beamform()` to beamform and coherently compound all transmit angles. mach supports NumPy and GPU-array inputs, including CuPy.
+
+This repository owns the experiment around that kernel: selecting and loading data, preparing layouts and geometry, deciding whether arrays stay on the GPU between runs, reducing or saving the image, and measuring latency, transfers, and deadline misses. It does not implement the optimized DAS kernel itself; [exercise 6](exercises/06-custom-das-kernel.md) is the planned place to build a reference kernel and compare it with mach. The PICMUS path uses mach's experimental compounding API, so its behavior may change across versions; the optional dependency currently stays within the `0.2.x` series.
 
 The benchmark compares two input paths:
 
 - **`numpy`** passes host arrays to mach for each beamforming call. This includes the library's host/device transfer behavior.
-- **`cupy`** uploads the IQ ensemble once per run, keeps it on the GPU across beamforming batches, and accumulates Power Doppler there. Static probe and scan geometry is uploaded once before timing.
+- **`cupy`** keeps inputs on the GPU across repeated beamforming calls. For PyMUST it uploads the IQ ensemble once per run; for PICMUS it uploads channel data and geometry once before the measured runs. Power Doppler accumulation or coherent compounding then runs through mach on the resident arrays.
 
 Mach's docs specify IQ input as contiguous `(elements, samples, frames)` arrays and note that host arrays add CPU/GPU transfer latency. The benchmark reports whole-pipeline wall time separately from CUDA-event beamforming time so those costs are visible.
 
@@ -56,7 +62,7 @@ source .venv/bin/activate
 python -m pip install -e '.[gpu]'
 ```
 
-The optional dependency group includes mach's example dependencies, including PyMUST for RF-to-IQ demodulation, and CuPy for the GPU-resident comparison path.
+The optional dependency group includes mach's example dependencies: PyMUST for RF-to-IQ conversion, `pyuff-ustb` for PICMUS UFF input, and CuPy for the GPU-resident comparison path.
 
 ## Run it
 
@@ -67,11 +73,17 @@ beamform-lab benchmark --mode numpy --runs 200 --batch-size 32 \
 beamform-lab benchmark --mode cupy --runs 200 --batch-size 32 \
   --deadline-ms 10 --save-power artifacts/power_doppler.npy \
   --output artifacts/cupy.json
+
+beamform-lab benchmark --dataset picmus --mode numpy --runs 20 --warmup 2 \
+  --save-image artifacts/picmus-host.npy --output artifacts/picmus-host.json
+
+beamform-lab benchmark --dataset picmus --mode cupy --runs 20 --warmup 2 \
+  --save-image artifacts/picmus-device.npy --output artifacts/picmus-device.json
 ```
 
-Mach downloads and caches the PyMUST raw-RF sample on the first run. Later runs reuse it. Try `--batch-size 1`, `4`, `8`, and `32` to see how launch overhead, chunk copies, and the number of calls change. The default 251 × 251 scan grid has 63,001 points; use `--grid-size` to change the grid and see how work scales.
+Mach downloads and caches the PyMUST raw-RF sample on the first run. `--dataset picmus` downloads the 145.5 MB PICMUS UFF file and verifies its expected SHA-256; later runs reuse the cache. Try PyMUST `--batch-size 1`, `4`, `8`, and `32` to see how launch overhead, chunk copies, and the number of calls change. The default PyMUST 251 × 251 scan grid has 63,001 points; use `--grid-size` to change the grid. PICMUS uses its native 387 × 609 scan and compounds all 75 angles per run; `--batch-size` and `--grid-size` apply only to PyMUST.
 
-The report includes p50/p95/p99/p99.9 and max ensemble latency, deadline misses, frames per second, RF-to-IQ time, upload time, wall time, device beamforming time, and an output feature for comparing the two paths. It also reports a conservative first-acquisition-to-output estimate: acquisition-window duration + RF-to-IQ + measured pipeline time. This assumes those stages run serially; a real system can overlap acquisition, transfer, and compute.
+The PyMUST report includes p50/p95/p99/p99.9 and max ensemble latency, deadline misses, frames per second, RF-to-IQ time, upload time, wall time, device beamforming time, and an output feature for comparing the two paths. It also reports a conservative first-acquisition-to-output estimate: acquisition-window duration + RF-to-IQ + measured pipeline time. This assumes those stages run serially; a real system can overlap acquisition, transfer, and compute. The PICMUS report gives per-image reconstruction percentiles for one pre-acquired frame; its deadline is a reconstruction-only proxy, not a streaming fUSI deadline.
 
 For a system timeline on the NVIDIA host:
 
@@ -88,14 +100,15 @@ The [exercise index](exercises/README.md) separates runnable comparisons from ex
 
 ## Provenance and results
 
-[DATA_PROVENANCE.md](DATA_PROVENANCE.md) records the raw-data source, dataset description, citation, licensing caveat, and processing steps. Benchmark JSON includes an SHA-256 fingerprint of the loaded RF array plus Python, package, platform, GPU, CUDA, command, and Git revision metadata where available. The fingerprint is for the canonical loaded RF array, not the original MAT file bytes.
+[DATA_PROVENANCE.md](DATA_PROVENANCE.md) records each raw-data source, dataset description, citation, licensing caveat, and processing steps. PyMUST reports include a fingerprint of the loaded RF array; PICMUS reports include the verified UFF file hash and embedded authorship text when available. Both include Python, package, platform, GPU, CUDA, command, and Git revision metadata where available.
 
 Keep source data out of Git unless its terms explicitly permit redistribution. Keep large Nsight reports out of Git as well; see [results/README.md](results/README.md) for what to record and retain for an experiment.
 
 ## Data and software citations
 
 - PyMUST rotating-disk RF sample and workflow: [mach Doppler example](https://forest-neurotech.github.io/mach/examples/doppler.html)
-- Plane-wave phantom and in-vivo alternatives for a future loader: [USTB public datasets](https://unioslo.github.io/USTB/datasets.html) and [mach plane-wave compounding example](https://forest-neurotech.github.io/mach/examples/plane_wave_compound.html)
+- PICMUS channel data and multi-angle compounding: [USTB public datasets](https://unioslo.github.io/USTB/datasets.html) and [mach plane-wave compounding example](https://forest-neurotech.github.io/mach/examples/plane_wave_compound.html)
+- Beamforming implementation used by this lab: [Forest Neurotech's mach repository](https://github.com/Forest-Neurotech/mach)
 - GPU beamformer: [mach documentation](https://forest-neurotech.github.io/mach/)
 - Original ultrasound research toolbox: [MUST](https://www.biomecardio.com/MUST/index.html)
 - The code in this repository is MIT licensed. Dataset and third-party software terms are separate; follow their published attribution and license requirements in [DATA_PROVENANCE.md](DATA_PROVENANCE.md).

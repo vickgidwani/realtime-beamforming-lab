@@ -29,9 +29,31 @@ This is measured phantom data, not simulated data and not a brain/fUSI recording
 
 Each benchmark report stores the RF-array shape, dtype, and a SHA-256 fingerprint. The fingerprint is calculated from the loaded array's dtype string, its shape encoded as little-endian `int64`, and its bytes in C order. This identifies the array content used by the run; it is **not** a checksum of the original MAT container file.
 
-## Planned dataset: PICMUS experimental phantom
+## Active dataset: PICMUS experimental resolution/distortion phantom
 
-The intended next adapter is `PICMUS_experiment_resolution_distortion.uff`, a public experimental plane-wave dataset listed by the [USTB dataset catalog](https://unioslo.github.io/USTB/datasets.html). The USTB catalog says these UFF files contain channel data; the [mach compounding example](https://forest-neurotech.github.io/mach/examples/plane_wave_compound.html) demonstrates a 75-angle PICMUS workload. Before the adapter is merged, record the exact downloaded file's SHA-256, the UFF's embedded authorship/citation metadata, and the applicable dataset license. Do not bundle the raw UFF file in this repository.
+| Field | Value |
+| --- | --- |
+| Upstream file | `PICMUS_experiment_resolution_distortion.uff` |
+| Source | [USTB dataset catalog / Zenodo file](https://unioslo.github.io/USTB/datasets.html) |
+| Loader | `mach.io.utils.cached_download()` followed by `pyuff_ustb.Uff` and `mach.io.uff.create_beamforming_setup()` |
+| Raw file fingerprint | 145,518,524 bytes; SHA-256 `c93af0781daeebf771e53a42a629d4f311407410166ef2f1d227e9d2a1b8c641` (verified by the pinned mach example's downloader) |
+| Data type | Experimental phantom ultrasound channel data in UFF format |
+| Acquisition described by mach example | 128-element linear array; 75 plane-wave transmissions from −16° to +16°; 3,328 samples per acquisition; one frame; 20.8 MHz sampling frequency |
+| Imaging grid | 387 lateral × 609 depth points in the example setup |
+| Dataset citation | The UFF embeds dataset authorship metadata. The loader captures `channel_data.print_authorship()` output in benchmark provenance when the installed reader exposes it. Follow the attribution displayed in the file and the [PICMUS challenge](https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/) requirements. |
+| License | The raw UFF file is cached locally and is not redistributed by this repository. Follow the dataset's published reuse terms; the repository's MIT license covers code only. |
+
+This dataset is a larger, multi-angle image-quality workload than the rotating-disk phantom. It is suitable for testing per-angle beamforming, coherent compounding, and data movement with a denser scan grid. It is not an in-vivo brain recording and does not provide a slow-time hemodynamic sequence for functional analysis.
+
+### Transformations applied
+
+1. Download and verify the UFF file by expected size and SHA-256.
+2. Read `/channel_data` and `/scan` from the UFF container.
+3. Use mach's UFF adapter to prepare contiguous channel arrays, probe and scan geometry, and transmit arrival times.
+4. Coherently beamform and compound all 75 plane-wave transmissions with `mach.experimental.beamform()`.
+5. Convert the compounded complex image to magnitude for the saved B-mode array.
+
+The `picmus` benchmark records the time to load/prepare the dataset separately from the repeated reconstruction latency. In CuPy mode, channel and geometry arrays are uploaded once and reused. In NumPy mode, mach receives host arrays for each repeated reconstruction. The measured deadline is a reconstruction-only proxy because this file contains one pre-acquired frame, not a live stream.
 
 ## Provenance for new experiments
 
