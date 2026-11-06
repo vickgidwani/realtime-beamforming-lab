@@ -1,0 +1,20 @@
+{
+  "dataset": "PyMUST rotating-disk Doppler raw-RF phantom",
+  "rf_array_sha256": "7693278a345dc2b50d2e13cf1fa55dc6545af678d5c332cb7536a331ad30935e",
+  "warmup_runs": 1,
+  "timed_runs": 10,
+  "samples_ms": [
+    279.900477,
+    277.362897,
+    267.822705,
+    271.358581,
+    274.41263,
+    262.878246,
+    264.772991,
+    292.891341,
+    348.867697,
+    316.804683
+  ],
+  "p50_ms": 275.8877635,
+  "scope": "CPU pymust.rf2iq plus transpose and contiguous complex64 layout conversion; separate shared reference, not included in either GPU-path timer."
+}

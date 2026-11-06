@@ -20,6 +20,17 @@ class Workload:
     data_provenance: dict
 
 
+def convert_rf_to_iq(rf_data: np.ndarray, params: dict) -> np.ndarray:
+    """Convert RF to mach's contiguous elements × samples × frames IQ layout."""
+    import pymust
+
+    iq_samples_elements_frames = pymust.rf2iq(rf_data, params)
+    return np.ascontiguousarray(
+        np.transpose(iq_samples_elements_frames, (1, 0, 2)),
+        dtype=np.complex64,
+    )
+
+
 def load_pymust_doppler_workload(grid_size: int = 251) -> Workload:
     """Download/cache the small raw-RF phantom and prepare mach inputs."""
     if grid_size < 8:
@@ -52,11 +63,7 @@ def load_pymust_doppler_workload(grid_size: int = 251) -> Workload:
     rf_data = raw_rf.astype(float)
 
     conversion_start = time.perf_counter_ns()
-    iq_samples_elements_frames = pymust.rf2iq(rf_data, params)
-    iq_elements_samples_frames = np.ascontiguousarray(
-        np.transpose(iq_samples_elements_frames, (1, 0, 2)),
-        dtype=np.complex64,
-    )
+    iq_elements_samples_frames = convert_rf_to_iq(rf_data, params)
     rf_to_iq_ms = (time.perf_counter_ns() - conversion_start) / 1_000_000
 
     rx_coords_m = np.ascontiguousarray(

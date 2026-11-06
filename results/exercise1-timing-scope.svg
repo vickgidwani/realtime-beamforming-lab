@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 760" role="img" aria-labelledby="title desc">
+<title id="title">Exercise 1 timing scopes</title>
+<desc id="desc">Four swimlanes show NumPy and CuPy cold and warm paths. Cold timers include setup and one ensemble. Warm pipeline timers start at per-ensemble input handling. Both include beamforming, Power Doppler reduction, and host output. RF-to-IQ is a separate CPU measurement.</desc>
+<defs>
+  <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+    <path d="M0,0 L8,4 L0,8 Z" fill="#52606d"/>
+  </marker>
+</defs>
+<rect width="1440" height="760" fill="#ffffff"/>
+<text x="720" y="44" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#263442">What the cold and warm timers include</text>
+<text x="720" y="72" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" fill="#52606d">Conceptual timing diagram · stage widths are not proportional to duration</text>
+
+<g font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#263442">
+  <text x="24" y="181">NumPy · cold</text>
+  <text x="24" y="326">CuPy · cold</text>
+  <text x="24" y="501">NumPy · warm</text>
+  <text x="24" y="646">CuPy · warm</text>
+</g>
+
+<g stroke="#34495e" stroke-width="2" fill="none">
+  <path d="M178 126 v12 M178 132 H1242 M1242 126 v12"/>
+  <path d="M178 271 v12 M178 277 H1242 M1242 271 v12"/>
+  <path d="M398 446 v12 M398 452 H1242 M1242 446 v12"/>
+  <path d="M398 591 v12 M398 597 H1242 M1242 591 v12"/>
+</g>
+<g font-family="Arial, sans-serif" font-size="13" fill="#34495e">
+  <text x="710" y="116" text-anchor="middle">cold setup + first ensemble wall timer</text>
+  <text x="710" y="261" text-anchor="middle">cold setup + first ensemble wall timer</text>
+  <text x="820" y="436" text-anchor="middle">one ensemble_pipeline_wall_ms sample</text>
+  <text x="820" y="581" text-anchor="middle">one ensemble_pipeline_wall_ms sample</text>
+</g>
+
+<g font-family="Arial, sans-serif" font-size="13" text-anchor="middle" fill="#263442" stroke="#52606d" stroke-width="1.4">
+  <rect x="178" y="148" width="184" height="68" rx="10" fill="#dce3ea"/>
+  <rect x="398" y="148" width="184" height="68" rx="10" fill="#b9ddf4"/>
+  <rect x="618" y="148" width="184" height="68" rx="10" fill="#c9c4f2"/>
+  <rect x="838" y="148" width="184" height="68" rx="10" fill="#f5d4a8"/>
+  <rect x="1058" y="148" width="184" height="68" rx="10" fill="#bfe3cc"/>
+  <rect x="178" y="293" width="184" height="68" rx="10" fill="#dce3ea"/>
+  <rect x="398" y="293" width="184" height="68" rx="10" fill="#b9ddf4"/>
+  <rect x="618" y="293" width="184" height="68" rx="10" fill="#c9c4f2"/>
+  <rect x="838" y="293" width="184" height="68" rx="10" fill="#f5d4a8"/>
+  <rect x="1058" y="293" width="184" height="68" rx="10" fill="#bfe3cc"/>
+  <rect x="178" y="468" width="184" height="68" rx="10" fill="#f4f6f8" stroke-dasharray="6 4"/>
+  <rect x="398" y="468" width="184" height="68" rx="10" fill="#b9ddf4"/>
+  <rect x="618" y="468" width="184" height="68" rx="10" fill="#c9c4f2"/>
+  <rect x="838" y="468" width="184" height="68" rx="10" fill="#f5d4a8"/>
+  <rect x="1058" y="468" width="184" height="68" rx="10" fill="#bfe3cc"/>
+  <rect x="178" y="613" width="184" height="68" rx="10" fill="#f4f6f8" stroke-dasharray="6 4"/>
+  <rect x="398" y="613" width="184" height="68" rx="10" fill="#b9ddf4"/>
+  <rect x="618" y="613" width="184" height="68" rx="10" fill="#c9c4f2"/>
+  <rect x="838" y="613" width="184" height="68" rx="10" fill="#f5d4a8"/>
+  <rect x="1058" y="613" width="184" height="68" rx="10" fill="#bfe3cc"/>
+</g>
+
+<g stroke="#52606d" stroke-width="1.6" marker-end="url(#arrow)">
+  <path d="M367 182 H391 M587 182 H611 M807 182 H831 M1027 182 H1051"/>
+  <path d="M367 327 H391 M587 327 H611 M807 327 H831 M1027 327 H1051"/>
+  <path d="M367 502 H391 M587 502 H611 M807 502 H831 M1027 502 H1051"/>
+  <path d="M367 647 H391 M587 647 H611 M807 647 H831 M1027 647 H1051"/>
+</g>
+
+<g font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#263442">
+  <text x="270" y="174"><tspan x="270">Host geometry selected</tspan><tspan x="270" dy="17">(no GPU copy in setup)</tspan></text>
+  <text x="490" y="174"><tspan x="490">IQ + geometry staged</tspan><tspan x="490" dy="17">inside mach each call</tspan></text>
+  <text x="710" y="174"><tspan x="710">CUDA beamform</tspan><tspan x="710" dy="17">output returns to host</tspan></text>
+  <text x="930" y="174"><tspan x="930">Power Doppler</tspan><tspan x="930" dy="17">reduction on CPU</tspan></text>
+  <text x="1150" y="174"><tspan x="1150">Power map ready</tspan><tspan x="1150" dy="17">on host</tspan></text>
+
+  <text x="270" y="319"><tspan x="270">Copy static geometry</tspan><tspan x="270" dy="17">+ first CUDA use</tspan></text>
+  <text x="490" y="319"><tspan x="490">Upload IQ</tspan><tspan x="490" dy="17">once per ensemble</tspan></text>
+  <text x="710" y="319"><tspan x="710">CUDA beamform</tspan><tspan x="710" dy="17">result stays on GPU</tspan></text>
+  <text x="930" y="319"><tspan x="930">Power Doppler</tspan><tspan x="930" dy="17">reduction on GPU</tspan></text>
+  <text x="1150" y="319"><tspan x="1150">Copy reduced map</tspan><tspan x="1150" dy="17">to host</tspan></text>
+
+  <text x="270" y="494"><tspan x="270">Geometry remains</tspan><tspan x="270" dy="17">on host (outside timer)</tspan></text>
+  <text x="490" y="494"><tspan x="490">IQ + geometry staged</tspan><tspan x="490" dy="17">inside mach each call</tspan></text>
+  <text x="710" y="494"><tspan x="710">CUDA beamform</tspan><tspan x="710" dy="17">output returns to host</tspan></text>
+  <text x="930" y="494"><tspan x="930">Power Doppler</tspan><tspan x="930" dy="17">reduction on CPU</tspan></text>
+  <text x="1150" y="494"><tspan x="1150">Power map ready</tspan><tspan x="1150" dy="17">on host</tspan></text>
+
+  <text x="270" y="639"><tspan x="270">Geometry already</tspan><tspan x="270" dy="17">resident on GPU</tspan></text>
+  <text x="490" y="639"><tspan x="490">Upload IQ</tspan><tspan x="490" dy="17">once per ensemble</tspan></text>
+  <text x="710" y="639"><tspan x="710">CUDA beamform</tspan><tspan x="710" dy="17">result stays on GPU</tspan></text>
+  <text x="930" y="639"><tspan x="930">Power Doppler</tspan><tspan x="930" dy="17">reduction on GPU</tspan></text>
+  <text x="1150" y="639"><tspan x="1150">Copy reduced map</tspan><tspan x="1150" dy="17">to host</tspan></text>
+</g>
+
+<text x="720" y="728" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#52606d">The shared CPU RF-to-IQ p50 is measured separately; it is not included in either timer. Dashed boxes show prepared state outside the warm timer.</text>
+</svg>

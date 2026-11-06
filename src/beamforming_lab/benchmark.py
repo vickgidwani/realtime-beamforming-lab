@@ -65,11 +65,6 @@ def benchmark(
             "device_setup_plus_first_ensemble_wall_ms": float(
                 setup_to_first_output_ms
             ),
-            "first_sample_to_output_ms": float(
-                acquisition_window_ms
-                + workload.rf_to_iq_ms
-                + setup_to_first_output_ms
-            ),
             "scope": (
                 "Starts immediately before prepare_geometry and ends after the first "
                 "Power Doppler map is ready. For NumPy, first CUDA use occurs inside "
@@ -98,12 +93,12 @@ def benchmark(
         output_features.append(result["output_feature"])
         latest_power = result["power_doppler"]
 
-    first_sample_latency = [
-        acquisition_window_ms + workload.rf_to_iq_ms + duration
-        for duration in run_wall
-    ]
-    miss_count = 0
+    first_sample_latency = None
     if deadline_ms is not None:
+        first_sample_latency = [
+            acquisition_window_ms + workload.rf_to_iq_ms + duration
+            for duration in run_wall
+        ]
         miss_count = sum(latency > deadline_ms for latency in first_sample_latency)
 
     report = {
@@ -118,16 +113,12 @@ def benchmark(
         "frames_per_ensemble": frame_count,
         "prf_hz": prf_hz,
         "acquisition_window_ms": acquisition_window_ms,
-        "rf_to_iq_ms_once": workload.rf_to_iq_ms,
         "static_geometry_upload_ms_once": geometry.geometry_upload_ms,
         "batch_size_frames": batch_size,
         "warmup_runs": warmup,
         "measurement_runs": runs,
         "cold_start_measurement": cold_start_measurement,
         "deadline_ms": deadline_ms,
-        "deadline_misses_first_sample_to_output": miss_count,
-        "deadline_miss_rate": miss_count / runs if deadline_ms is not None else None,
-        "first_sample_to_output_ms": _distribution(first_sample_latency),
         "ensemble_pipeline_wall_ms": _distribution(run_wall),
         "per_ensemble_input_upload_ms": _distribution(input_upload),
         "beamform_host_call_sum_ms": _distribution(beamform_host),
@@ -137,11 +128,22 @@ def benchmark(
         "mean_output_feature": float(np.mean(output_features)),
         "notes": [
             "Power Doppler output is computed from the beamformed ensemble.",
-            "The first-sample latency estimate serializes acquisition, RF-to-IQ, and measured processing; overlap can reduce it.",
             "The 32-frame raw-RF ensemble is repeated to estimate latency percentiles.",
             "In cupy mode, IQ is uploaded once per ensemble; geometry stays GPU-resident across runs.",
         ],
     }
+    if deadline_ms is not None:
+        report.update(
+            {
+                "deadline_misses_first_sample_to_output": miss_count,
+                "deadline_miss_rate": miss_count / runs,
+                "first_sample_to_output_ms": _distribution(first_sample_latency),
+            }
+        )
+        report["notes"].append(
+            "The first-sample deadline estimate serializes acquisition, RF-to-IQ, "
+            "and processing; overlap can reduce live capture-to-output latency."
+        )
     return report, latest_power
 
 

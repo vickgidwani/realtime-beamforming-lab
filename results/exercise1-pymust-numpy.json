@@ -26,7 +26,7 @@
       "numpy": "2.4.6",
       "mach_beamform": "0.2.1",
       "cupy_cuda12x": null,
-      "cupy_cuda13x": "14.2.0",
+      "cupy_cuda13x": "14.0.1",
       "pymust": "0.1.9"
     },
     "gpu": {
@@ -34,9 +34,9 @@
       "compute_capability": "7.5",
       "memory_bytes": 15637086208,
       "driver_version": "13.0",
-      "runtime_version": "13.2"
+      "runtime_version": "13.0"
     },
-    "git_revision": "c286605fa01a8e72d9bbbe078ead90dda312dfca",
+    "git_revision": "cd0daebc1fd6e76ed0f84f24b815c1c096a0d687",
     "command": [
       "beamform-lab",
       "benchmark",
@@ -69,36 +69,24 @@
   "frames_per_ensemble": 32,
   "prf_hz": 10000.0,
   "acquisition_window_ms": 3.2,
-  "rf_to_iq_ms_once": 259.343373,
   "static_geometry_upload_ms_once": 0.0,
   "batch_size_frames": 32,
   "warmup_runs": 10,
   "measurement_runs": 200,
   "cold_start_measurement": {
-    "geometry_prepare_wall_ms": 0.008085,
-    "first_ensemble_pipeline_wall_ms": 198.549265,
-    "device_setup_plus_first_ensemble_wall_ms": 198.579044,
-    "first_sample_to_output_ms": 461.122417,
+    "geometry_prepare_wall_ms": 0.008593,
+    "first_ensemble_pipeline_wall_ms": 202.554451,
+    "device_setup_plus_first_ensemble_wall_ms": 202.587825,
     "scope": "Starts immediately before prepare_geometry and ends after the first Power Doppler map is ready. For NumPy, first CUDA use occurs inside the first mach call; for CuPy, it occurs during geometry preparation. Dataset loading and RF-to-IQ conversion happen before this timer. The cold call is separate from warmup and measured latency samples."
   },
   "deadline_ms": null,
-  "deadline_misses_first_sample_to_output": 0,
-  "deadline_miss_rate": null,
-  "first_sample_to_output_ms": {
-    "count": 200,
-    "p50": 278.743638,
-    "p95": 281.78561905,
-    "p99": 283.27488733999996,
-    "p99_9": 285.7831733,
-    "max": 286.15635799999995
-  },
   "ensemble_pipeline_wall_ms": {
     "count": 200,
-    "p50": 16.200265,
-    "p95": 19.24224605,
-    "p99": 20.73151433999999,
-    "p99_9": 23.239800300000027,
-    "max": 23.612985
+    "p50": 16.6592095,
+    "p95": 18.9586093,
+    "p99": 20.29903007999999,
+    "p99_9": 23.405405613000045,
+    "max": 23.947723
   },
   "per_ensemble_input_upload_ms": {
     "count": 200,
@@ -110,18 +98,17 @@
   },
   "beamform_host_call_sum_ms": {
     "count": 200,
-    "p50": 11.5336835,
-    "p95": 13.0940258,
-    "p99": 14.16399992999999,
-    "p99_9": 15.234707583000002,
-    "max": 15.260614
+    "p50": 11.9620585,
+    "p95": 13.381636199999999,
+    "p99": 13.940804729999986,
+    "p99_9": 17.278664826000036,
+    "max": 17.74234
   },
   "beamform_device_event_sum_ms": null,
-  "equivalent_beamformed_frames_per_second": 1975.2763303563243,
+  "equivalent_beamformed_frames_per_second": 1920.8594501437776,
   "mean_output_feature": 712192448.0,
   "notes": [
     "Power Doppler output is computed from the beamformed ensemble.",
-    "The first-sample latency estimate serializes acquisition, RF-to-IQ, and measured processing; overlap can reduce it.",
     "The 32-frame raw-RF ensemble is repeated to estimate latency percentiles.",
     "In cupy mode, IQ is uploaded once per ensemble; geometry stays GPU-resident across runs."
   ]
