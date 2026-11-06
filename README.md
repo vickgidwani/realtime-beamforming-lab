@@ -67,7 +67,7 @@ source .venv/bin/activate
 python -m pip install -e '.[gpu]'
 ```
 
-The optional dependency group includes mach's example dependencies: PyMUST for RF-to-IQ conversion, `pyuff-ustb` for PICMUS UFF input, and CuPy for the GPU-resident comparison path.
+The `gpu` extra uses the CUDA 12 CuPy wheel for Linux GPU hosts. The `gpu-colab` extra uses the CUDA 13 wheel available in the current Colab GPU runtime. Both include mach's example dependencies: PyMUST for RF-to-IQ conversion and `pyuff-ustb` for PICMUS UFF input. Keeping the CuPy variants separate avoids installing both runtime wheels in one environment.
 
 ## Run it
 
@@ -78,9 +78,18 @@ In Colab, choose **Runtime → Change runtime type → GPU**, then run these cel
 ```python
 !git clone https://github.com/vickgidwani/realtime-beamforming-lab.git
 %cd realtime-beamforming-lab
-%pip install -e '.[gpu]'
 !nvidia-smi
+%pip install -e '.[gpu-colab]'
 ```
+
+If this Colab runtime already has a CUDA 12 CuPy wheel or a mixed CuPy installation, remove both variants, reinstall the Colab extra, then restart the runtime before importing CuPy:
+
+```python
+%pip uninstall -y cupy-cuda12x cupy-cuda13x
+%pip install --no-cache-dir -e '.[gpu-colab]'
+```
+
+Uninstalling only one variant can leave the shared `cupy` package files incomplete. The [Exercise 1 Colab notebook](exercises/01-transfer-path.ipynb) provides the matched NumPy/CuPy benchmark, output analysis, and plots for the VS Code Colab extension. It installs the local checkout, so upload the current project folder to a fresh runtime before running it.
 
 ```python
 !beamform-lab benchmark --dataset pymust --mode cupy --runs 2 --warmup 0 \

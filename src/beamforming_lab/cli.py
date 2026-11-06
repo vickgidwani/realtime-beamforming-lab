@@ -23,6 +23,14 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--batch-size", type=int, help="PyMUST frame batch size")
     run.add_argument("--grid-size", type=int, help="PyMUST scan grid width/depth")
     run.add_argument("--deadline-ms", type=float)
+    run.add_argument(
+        "--measure-cold-start",
+        action="store_true",
+        help=(
+            "Measure device setup and the first PyMUST ensemble before warmups; "
+            "report separately from steady-state latency"
+        ),
+    )
     run.add_argument("--output", type=Path)
     run.add_argument("--save-power", type=Path)
     run.add_argument("--save-image", type=Path)
@@ -47,8 +55,14 @@ def main(argv: Sequence[str] | None = None) -> None:
             warmup=args.warmup if args.warmup is not None else 10,
             batch_size=args.batch_size if args.batch_size is not None else 32,
             deadline_ms=args.deadline_ms,
+            measure_cold_start=args.measure_cold_start,
         )
     else:
+        if args.measure_cold_start:
+            raise ValueError(
+                "--measure-cold-start is currently supported only with "
+                "--dataset pymust"
+            )
         if args.batch_size is not None or args.grid_size is not None:
             raise ValueError(
                 "--batch-size and --grid-size apply only to --dataset pymust; "

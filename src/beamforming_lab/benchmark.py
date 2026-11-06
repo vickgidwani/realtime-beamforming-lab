@@ -33,10 +33,51 @@ def benchmark(
     warmup: int,
     batch_size: int,
     deadline_ms: float | None,
+    measure_cold_start: bool = False,
 ) -> tuple[dict[str, Any], np.ndarray]:
     if runs < 1 or warmup < 0:
         raise ValueError("runs must be positive and warmup nonnegative")
+
+    frame_count = workload.iq_elements_samples_frames.shape[2]
+    prf_hz = float(workload.params["PRF"])
+    acquisition_window_ms = frame_count / prf_hz * 1000.0
+
+    cold_start_measurement = None
+    cold_start_started_ns = 0
+    geometry_prepare_start_ns = 0
+    if measure_cold_start:
+        cold_start_started_ns = time.perf_counter_ns()
+        geometry_prepare_start_ns = cold_start_started_ns
     geometry = prepare_geometry(workload, mode)
+    if measure_cold_start:
+        geometry_prepare_wall_ms = (
+            (time.perf_counter_ns() - geometry_prepare_start_ns) / 1_000_000
+        )
+        first_result = run_ensemble(workload, geometry, batch_size=batch_size)
+        first_ensemble_wall_ms = float(first_result["run_wall_ms"])
+        setup_to_first_output_ms = (
+            (time.perf_counter_ns() - cold_start_started_ns) / 1_000_000
+        )
+        cold_start_measurement = {
+            "geometry_prepare_wall_ms": float(geometry_prepare_wall_ms),
+            "first_ensemble_pipeline_wall_ms": first_ensemble_wall_ms,
+            "device_setup_plus_first_ensemble_wall_ms": float(
+                setup_to_first_output_ms
+            ),
+            "first_sample_to_output_ms": float(
+                acquisition_window_ms
+                + workload.rf_to_iq_ms
+                + setup_to_first_output_ms
+            ),
+            "scope": (
+                "Starts immediately before prepare_geometry and ends after the first "
+                "Power Doppler map is ready. For NumPy, first CUDA use occurs inside "
+                "the first mach call; for CuPy, it occurs during geometry preparation. "
+                "Dataset loading and RF-to-IQ conversion happen before this timer. "
+                "The cold call is separate from warmup and measured latency samples."
+            ),
+        }
+
     for _ in range(warmup):
         run_ensemble(workload, geometry, batch_size=batch_size)
 
@@ -56,9 +97,6 @@ def benchmark(
         output_features.append(result["output_feature"])
         latest_power = result["power_doppler"]
 
-    frame_count = workload.iq_elements_samples_frames.shape[2]
-    prf_hz = float(workload.params["PRF"])
-    acquisition_window_ms = frame_count / prf_hz * 1000.0
     first_sample_latency = [
         acquisition_window_ms + workload.rf_to_iq_ms + duration
         for duration in run_wall
@@ -84,6 +122,7 @@ def benchmark(
         "batch_size_frames": batch_size,
         "warmup_runs": warmup,
         "measurement_runs": runs,
+        "cold_start_measurement": cold_start_measurement,
         "deadline_ms": deadline_ms,
         "deadline_misses_first_sample_to_output": miss_count,
         "deadline_miss_rate": miss_count / runs if deadline_ms is not None else None,

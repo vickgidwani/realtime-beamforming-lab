@@ -36,8 +36,9 @@ def load_pymust_doppler_workload(grid_size: int = 251) -> Workload:
         )
     except ImportError as exc:
         raise RuntimeError(
-            "Install the GPU dependencies with `python -m pip install -e '.[gpu]'` "
-            "on a supported Linux/NVIDIA system."
+            "Install the matching GPU extra on a supported Linux/NVIDIA system: "
+            "`python -m pip install -e '.[gpu]'` for CUDA 12.x or "
+            "`python -m pip install -e '.[gpu-colab]'` for Colab CUDA 13.x."
         ) from exc
 
     mat_data = download_pymust_doppler_data()

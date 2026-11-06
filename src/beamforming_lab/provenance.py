@@ -68,6 +68,7 @@ def runtime_provenance() -> dict[str, Any]:
             "numpy": _distribution_version("numpy"),
             "mach_beamform": _distribution_version("mach-beamform"),
             "cupy_cuda12x": _distribution_version("cupy-cuda12x"),
+            "cupy_cuda13x": _distribution_version("cupy-cuda13x"),
             "pymust": _distribution_version("pymust"),
         },
         "gpu": _gpu_info(),

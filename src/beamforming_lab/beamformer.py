@@ -122,7 +122,7 @@ def run_ensemble(
     if cp is not None:
         cp.cuda.Device().synchronize()
         device_beamform_ms = sum(
-            float(event_start.elapsed_time(event_end))
+            float(cp.cuda.get_elapsed_time(event_start, event_end))
             for event_start, event_end in device_event_pairs
         )
         output_feature = float(xp.mean(power_doppler).get())

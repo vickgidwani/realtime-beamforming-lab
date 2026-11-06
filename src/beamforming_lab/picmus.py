@@ -39,7 +39,8 @@ def load_picmus_workload() -> PicmusWorkload:
     except ImportError as exc:
         raise RuntimeError(
             "PICMUS loading requires the mach example dependencies. Install "
-            "with `python -m pip install -e '.[gpu]'`."
+            "with `python -m pip install -e '.[gpu]'` for CUDA 12.x or "
+            "`python -m pip install -e '.[gpu-colab]'` for Colab CUDA 13.x."
         ) from exc
 
     data_path: Path = cached_download(
@@ -182,7 +183,7 @@ def benchmark_picmus(
         if event_end is not None:
             event_end.record()
             event_cp.cuda.Device().synchronize()
-            device_ms = float(event_start.elapsed_time(event_end))
+            device_ms = float(event_cp.cuda.get_elapsed_time(event_start, event_end))
         else:
             device_ms = None
         wall_ms = (time.perf_counter_ns() - start_ns) / 1_000_000

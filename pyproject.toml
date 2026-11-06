@@ -15,8 +15,14 @@ dependencies = [
 
 [project.optional-dependencies]
 gpu = [
-  "mach-beamform[all]>=0.2.1,<0.3.0",
-  "cupy-cuda12x>=13.0",
+  "mach-beamform[examples,uff,vis]>=0.2.1,<0.3.0",
+  "tqdm>=4.65",
+  "cupy-cuda12x>=14.0",
+]
+gpu-colab = [
+  "mach-beamform[examples,uff,vis]>=0.2.1,<0.3.0",
+  "tqdm>=4.65",
+  "cupy-cuda13x>=13.0",
 ]
 
 [project.scripts]
