@@ -1,0 +1,24 @@
+
+NOTICE: Existing SQLite export found: artifacts/exercise2-pymust-numpy.sqlite
+        It is assumed file was previously exported from: artifacts/exercise2-pymust-numpy.nsys-rep
+        Consider using --force-export=true if needed.
+
+Processing [artifacts/exercise2-pymust-numpy.sqlite] with [/opt/nvidia/nsight-compute/2025.3.1/host/target-linux-x64/reports/cuda_gpu_mem_size_sum.py]...
+
+ ** CUDA GPU MemOps Summary (by Size) (cuda_gpu_mem_size_sum):
+
+ Total (MB)  Count  Avg (MB)  Med (MB)  Min (MB)  Max (MB)  StdDev (MB)           Operation
+ ----------  -----  --------  --------  --------  --------  -----------  ----------------------------
+     80.641      5    16.128    16.128    16.128    16.128        0.000  [CUDA memcpy Device-to-Host]
+     80.641      5    16.128    16.128    16.128    16.128        0.000  [CUDA memset]
+     59.770     20     2.989     0.504     0.002    10.945        4.721  [CUDA memcpy Host-to-Device]
+
+Processing [artifacts/exercise2-pymust-numpy.sqlite] with [/opt/nvidia/nsight-compute/2025.3.1/host/target-linux-x64/reports/cuda_gpu_mem_time_sum.py]...
+
+ ** CUDA GPU MemOps Summary (by Time) (cuda_gpu_mem_time_sum):
+
+ Time (%)  Total Time (ns)  Count   Avg (ns)     Med (ns)    Min (ns)   Max (ns)   StdDev (ns)           Operation
+ --------  ---------------  -----  -----------  -----------  ---------  ---------  -----------  ----------------------------
+     60.4       19,530,379      5  3,906,075.8  3,909,026.0  3,625,733  4,146,880    187,631.6  [CUDA memcpy Device-to-Host]
+     38.5       12,459,296     20    622,964.8     43,647.5      1,248  2,507,692  1,056,098.5  [CUDA memcpy Host-to-Device]
+      1.1          339,901      5     67,980.2     67,712.0     67,647     68,864        513.6  [CUDA memset]

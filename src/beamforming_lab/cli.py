@@ -9,6 +9,7 @@ import numpy as np
 
 from .benchmark import benchmark, save_report
 from .picmus import benchmark_picmus
+from .reduction_benchmark import benchmark_power_doppler_reduction
 from .workload import load_pymust_doppler_workload
 
 
@@ -34,11 +35,38 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--output", type=Path)
     run.add_argument("--save-power", type=Path)
     run.add_argument("--save-image", type=Path)
+
+    reduction = commands.add_parser(
+        "benchmark-reduction",
+        help="compare CPU and GPU Power Doppler reduction on identical data",
+    )
+    reduction.add_argument("--grid-size", type=int, default=251)
+    reduction.add_argument("--batch-size", type=int)
+    reduction.add_argument("--runs", type=int, default=20)
+    reduction.add_argument("--warmup", type=int, default=5)
+    reduction.add_argument("--batch-repeats", type=int, default=5)
+    reduction.add_argument("--nvtx", action="store_true")
+    reduction.add_argument("--output", type=Path)
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> None:
     args = _parser().parse_args(argv)
+    if args.command == "benchmark-reduction":
+        report = benchmark_power_doppler_reduction(
+            grid_size=args.grid_size,
+            batch_size=args.batch_size,
+            runs=args.runs,
+            warmup=args.warmup,
+            batch_repeats=args.batch_repeats,
+            nvtx=args.nvtx,
+        )
+        print(json.dumps(report, indent=2))
+        if args.output is not None:
+            save_report(report, args.output)
+            print(f"Report saved: {args.output}")
+        return
+
     if args.deadline_ms is not None and args.deadline_ms <= 0:
         raise ValueError("deadline_ms must be positive")
 
