@@ -1,0 +1,135 @@
+{
+  "dataset": "PyMUST rotating-disk Doppler raw-RF phantom",
+  "data_provenance": {
+    "dataset_id": "PyMUST example PWI_disk.mat",
+    "source_url": "https://github.com/creatis-ULTIM/PyMUST/blob/fe73cc3911a51b48b36095c2e0ad29c266532447/examples/data/PWI_disk.mat",
+    "retrieval": "mach.io.must.download_pymust_doppler_data()",
+    "raw_file_size_bytes": 2085623,
+    "raw_file_sha256": "c349dc1d677c561434fd0e4a74142c4a0a44b7e6ae0a42d446c078a528ef58c1",
+    "recording": "Ultrasound RF from a tissue-mimicking phantom with a rotating disk; not a brain or fUSI recording.",
+    "rf_array_shape": [
+      334,
+      128,
+      32
+    ],
+    "rf_array_dtype": "int16",
+    "rf_array_sha256": "7693278a345dc2b50d2e13cf1fa55dc6545af678d5c332cb7536a331ad30935e",
+    "hash_definition": "SHA-256 of dtype string, little-endian int64 shape, and the loaded RF array bytes in C order; this fingerprints the RF array, not the original MAT file bytes.",
+    "citation": "Garcia, D. MUST: An Open Platform for Ultrasound Research. See the PyMUST and mach dataset references in DATA_PROVENANCE.md.",
+    "license_note": "The raw data is downloaded from its upstream source and is not redistributed by this repository. Dataset terms are separate from the repository's MIT code license."
+  },
+  "runtime_provenance": {
+    "python": "3.13.16",
+    "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "cpu_count": 2,
+    "packages": {
+      "numpy": "2.4.6",
+      "mach_beamform": "0.2.1",
+      "cupy_cuda12x": null,
+      "cupy_cuda13x": "14.2.0",
+      "pymust": "0.1.9"
+    },
+    "gpu": {
+      "name": "Tesla T4",
+      "compute_capability": "7.5",
+      "memory_bytes": 15637086208,
+      "driver_version": "13.0",
+      "runtime_version": "13.2"
+    },
+    "git_revision": "c286605fa01a8e72d9bbbe078ead90dda312dfca",
+    "command": [
+      "beamform-lab",
+      "benchmark",
+      "--dataset",
+      "pymust",
+      "--mode",
+      "cupy",
+      "--measure-cold-start",
+      "--runs",
+      "200",
+      "--warmup",
+      "10",
+      "--batch-size",
+      "32",
+      "--grid-size",
+      "251",
+      "--output",
+      "exercise1-pymust-cupy.json",
+      "--save-power",
+      "exercise1-pymust-cupy-power.npy"
+    ]
+  },
+  "array_mode": "cupy",
+  "iq_shape_elements_samples_frames": [
+    128,
+    334,
+    32
+  ],
+  "scan_grid_points": 63001,
+  "frames_per_ensemble": 32,
+  "prf_hz": 10000.0,
+  "acquisition_window_ms": 3.2,
+  "rf_to_iq_ms_once": 242.443104,
+  "static_geometry_upload_ms_once": 172.30061,
+  "batch_size_frames": 32,
+  "warmup_runs": 10,
+  "measurement_runs": 200,
+  "cold_start_measurement": {
+    "geometry_prepare_wall_ms": 322.472449,
+    "first_ensemble_pipeline_wall_ms": 72.874179,
+    "device_setup_plus_first_ensemble_wall_ms": 395.37938,
+    "first_sample_to_output_ms": 641.0224840000001,
+    "scope": "Starts immediately before prepare_geometry and ends after the first Power Doppler map is ready. For NumPy, first CUDA use occurs inside the first mach call; for CuPy, it occurs during geometry preparation. Dataset loading and RF-to-IQ conversion happen before this timer. The cold call is separate from warmup and measured latency samples."
+  },
+  "deadline_ms": null,
+  "deadline_misses_first_sample_to_output": 0,
+  "deadline_miss_rate": null,
+  "first_sample_to_output_ms": {
+    "count": 200,
+    "p50": 250.352036,
+    "p95": 251.80301115,
+    "p99": 251.90784011,
+    "p99_9": 252.009031943,
+    "max": 252.019289
+  },
+  "ensemble_pipeline_wall_ms": {
+    "count": 200,
+    "p50": 4.708932,
+    "p95": 6.15990715,
+    "p99": 6.264736109999999,
+    "p99_9": 6.365927943000001,
+    "max": 6.376185
+  },
+  "per_ensemble_input_upload_ms": {
+    "count": 200,
+    "p50": 1.822465,
+    "p95": 2.00890215,
+    "p99": 2.1700758699999985,
+    "p99_9": 2.398273246000002,
+    "max": 2.421446
+  },
+  "beamform_host_call_sum_ms": {
+    "count": 200,
+    "p50": 2.3428385,
+    "p95": 3.7915500499999997,
+    "p99": 3.8059827200000003,
+    "p99_9": 3.8125984760000002,
+    "max": 3.814126
+  },
+  "beamform_device_event_sum_ms": {
+    "count": 200,
+    "p50": 2.350335955619812,
+    "p95": 3.8004830956459044,
+    "p99": 3.8215731310844423,
+    "p99_9": 3.8232589659690857,
+    "max": 3.823551893234253
+  },
+  "equivalent_beamformed_frames_per_second": 6795.596113938363,
+  "mean_output_feature": 712192384.0,
+  "notes": [
+    "Power Doppler output is computed from the beamformed ensemble.",
+    "The first-sample latency estimate serializes acquisition, RF-to-IQ, and measured processing; overlap can reduce it.",
+    "The 32-frame raw-RF ensemble is repeated to estimate latency percentiles.",
+    "In cupy mode, IQ is uploaded once per ensemble; geometry stays GPU-resident across runs."
+  ]
+}
