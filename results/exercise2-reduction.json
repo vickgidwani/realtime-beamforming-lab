@@ -1,0 +1,134 @@
+{
+  "dataset": "PyMUST rotating-disk Doppler raw-RF phantom",
+  "data_provenance": {
+    "dataset_id": "PyMUST example PWI_disk.mat",
+    "source_url": "https://github.com/creatis-ULTIM/PyMUST/blob/fe73cc3911a51b48b36095c2e0ad29c266532447/examples/data/PWI_disk.mat",
+    "retrieval": "mach.io.must.download_pymust_doppler_data()",
+    "raw_file_size_bytes": 2085623,
+    "raw_file_sha256": "c349dc1d677c561434fd0e4a74142c4a0a44b7e6ae0a42d446c078a528ef58c1",
+    "recording": "Ultrasound RF from a tissue-mimicking phantom with a rotating disk; not a brain or fUSI recording.",
+    "rf_array_shape": [
+      334,
+      128,
+      32
+    ],
+    "rf_array_dtype": "int16",
+    "rf_array_sha256": "7693278a345dc2b50d2e13cf1fa55dc6545af678d5c332cb7536a331ad30935e",
+    "hash_definition": "SHA-256 of dtype string, little-endian int64 shape, and the loaded RF array bytes in C order; this fingerprints the RF array, not the original MAT file bytes.",
+    "citation": "Garcia, D. MUST: An Open Platform for Ultrasound Research. See the PyMUST and mach dataset references in DATA_PROVENANCE.md.",
+    "license_note": "The raw data is downloaded from its upstream source and is not redistributed by this repository. Dataset terms are separate from the repository's MIT code license."
+  },
+  "runtime_provenance": {
+    "python": "3.13.16",
+    "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "cpu_count": 2,
+    "packages": {
+      "numpy": "2.4.6",
+      "mach_beamform": "0.2.1",
+      "cupy_cuda12x": null,
+      "cupy_cuda13x": "14.0.1",
+      "pymust": "0.1.9"
+    },
+    "gpu": {
+      "name": "Tesla T4",
+      "compute_capability": "7.5",
+      "memory_bytes": 15637086208,
+      "driver_version": "13.0",
+      "runtime_version": "13.0"
+    },
+    "git_revision": "7a33875cf4215b2de8662b195f3ec2b7d38faf9d",
+    "command": [
+      "beamform-lab",
+      "benchmark-reduction",
+      "--runs",
+      "20",
+      "--warmup",
+      "5",
+      "--batch-repeats",
+      "5",
+      "--output",
+      "results/exercise2-reduction.json"
+    ]
+  },
+  "reference_beamformed_ensemble": {
+    "generated_once_with": "mach CUDA beamformer using CuPy-resident inputs",
+    "shape": [
+      63001,
+      32
+    ],
+    "dtype": "complex64",
+    "bytes": 16128256,
+    "frames": 32,
+    "map_shape": [
+      251,
+      251
+    ],
+    "map_bytes": 252004
+  },
+  "measurement_design": {
+    "warmup_calls_per_backend_per_phase": 5,
+    "batches_per_backend_per_phase": 20,
+    "calls_per_batch": 5,
+    "calls_per_backend_per_phase": 100,
+    "distribution_sample": "Each reported timing sample is the average of calls_per_batch reduction calls; percentile distributions cover batches.",
+    "nvtx_ranges_enabled": false,
+    "timing_scope": "Compute-only timings start with identical beamformed values already resident in host and device memory. Post-beamforming path timings start with the reference ensemble on the GPU and include the full ensemble D2H plus NumPy reduction, or the CuPy reduction plus the Power Doppler map and scalar-summary D2H. Reference beamforming and its initial setup are excluded from all reducer timings."
+  },
+  "compute_only_ms_per_call": {
+    "numpy_cpu_wall": {
+      "count": 20,
+      "p50": 3.7037743,
+      "p95": 4.425717770000001,
+      "p99": 5.109164033999999,
+      "min": 3.6361184,
+      "max": 5.2800256
+    },
+    "cupy_gpu_event_elapsed": {
+      "count": 20,
+      "p50": 0.9581568241119385,
+      "p95": 0.9609772634506225,
+      "p99": 0.9619208707809448,
+      "min": 0.9490431785583496,
+      "max": 0.9621567726135254
+    },
+    "cupy_synchronized_host_wall": {
+      "count": 20,
+      "p50": 0.9629078,
+      "p95": 0.9669351399999999,
+      "p99": 0.967247348,
+      "min": 0.951539,
+      "max": 0.9673254
+    }
+  },
+  "post_beamforming_to_host_ms_per_call": {
+    "numpy_full_ensemble_d2h_plus_reduction_and_mean": {
+      "count": 20,
+      "p50": 7.3801873,
+      "p95": 8.4152917,
+      "p99": 8.66433914,
+      "min": 7.0514506,
+      "max": 8.726600999999999
+    },
+    "cupy_reduction_plus_map_and_scalar_d2h": {
+      "count": 20,
+      "p50": 1.1184633,
+      "p95": 1.17606125,
+      "p99": 1.20921321,
+      "min": 1.1005814,
+      "max": 1.2175012
+    }
+  },
+  "correctness": {
+    "allclose_rtol_2e-5_atol_1e-7": true,
+    "normalized_l2_error": 5.874227337049439e-08,
+    "maximum_absolute_difference_over_shared_peak": 1.4049883972545684e-07,
+    "post_beamforming_maps_close": true,
+    "post_beamforming_scalar_summary_close": true
+  },
+  "notes": [
+    "Unprofiled JSON timings are the comparison results; Nsight traces are for stage and kernel attribution.",
+    "GPU-event elapsed time and synchronized host wall time are separate metrics.",
+    "The compute-only phase excludes transfers; the post-beamforming phase includes the transfer each path requires.",
+    "The scalar mean is included only in the post-beamforming path to match the production output summary."
+  ]
+}
