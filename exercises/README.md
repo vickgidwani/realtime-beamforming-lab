@@ -8,9 +8,9 @@ The labs are designed to make each performance claim traceable to a baseline, wo
 2. [Reduce before copying to host](02-device-side-reduction.md) — quantify the output-transfer reduction from GPU-side Power Doppler accumulation. The companion [Colab notebook](02-device-side-reduction.ipynb) analyzes the Nsight Systems traces.
 3. [PICMUS multi-angle compounding](03-picmus-compounding.md) — profile coherent compounding of 75 experimental phantom transmissions with host and GPU-resident arrays.
 
-## Planned extensions
+## In progress and planned
 
-4. [RF-to-IQ preprocessing scale](04-rf-to-iq-scaling.md) — measure CPU worker and dtype choices while checking numerical error.
+4. [RF analytic and baseband conversion](04-rf-to-iq-scaling.md) — [companion notebook](04-rf-to-iq-scaling.ipynb) is prepared for a Colab T4 run; it compares Hilbert and mix-and-filter conversion on CPU and GPU across PyMUST and PICMUS, including a CPU worker sweep and optional synthetic scaling.
 5. [Copy/compute overlap and tail latency](05-streaming-tail-latency.md) — replay a sustained stream and measure overlap, queue depth, frame drops, and deadlines.
 6. [Custom DAS kernel](06-custom-das-kernel.md) — implement and profile a CUDA reference kernel, then tune memory access and work partitioning against `mach`.
 
