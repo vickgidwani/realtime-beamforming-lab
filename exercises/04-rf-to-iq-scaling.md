@@ -11,7 +11,7 @@
 ## Workloads
 
 - **PyMUST rotating-disk phantom:** measured raw RF with 128 elements, 334 fast-time samples, and 32 slow-time frames. Its sampling and center frequencies are available, and `pymust.rf2iq` provides the CPU baseband-IQ reference.
-- **PICMUS resolution/distortion phantom:** measured raw RF with 128 elements, 3,328 samples, 75 transmit angles, and one compounded imaging frame. The angles are independent transmit acquisitions, not slow-time frames. Mach's UFF adapter applies a Hilbert transform when the UFF modulation-frequency field is zero. For the baseband path, obtain the actual carrier frequency from pulse/acquisition metadata; do not treat that zero as the carrier.
+- **PICMUS resolution/distortion phantom:** measured raw RF with 128 elements, 3,328 samples, 75 transmit angles, and one compounded imaging frame. The angles are independent transmit acquisitions, not slow-time frames. Mach's UFF adapter applies a Hilbert transform when the UFF modulation-frequency field is zero. This UFF has no pulse object, so use the PICMUS challenge's 5.208 MHz transmit frequency for baseband downmixing; do not treat the zero modulation field as the carrier. See the [official transmit-pulse specification](https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/transmit_pulse).
 - **Larger scale case:** use deterministic synthetic RF with known envelope and phase, or a clearly labeled replay of measured traces. Keep real-data accuracy checks separate from scale-only runs.
 
 ## Comparison
@@ -27,7 +27,7 @@ Use a vectorized, single-worker CPU baseline, then sweep a small number of CPU w
 
 Load each dataset once and time file I/O separately from conversion. Report conversion compute time, required host/device transfers, beamforming time, and conversion-to-image wall time separately. The notebook samples peak host RSS and CuPy-pool use as approximate deltas and records raw/output payload bytes exactly. Include transfer costs in end-to-end comparisons; do not count the UFF read or geometry setup as RF conversion.
 
-Hilbert produces analytic RF with the carrier still present, while mix-and-filter produces baseband IQ. For cross-method accuracy, account for that carrier rotation and match bandwidth and amplitude conventions. Also compare beamformed outputs using the corresponding Mach modulation-frequency setting: zero for undemodulated analytic RF, and the actual center frequency for baseband IQ.
+Hilbert produces analytic RF with the carrier still present, while mix-and-filter produces baseband IQ. For cross-method accuracy, account for that carrier rotation and match bandwidth and amplitude conventions. Also compare beamformed outputs using the corresponding Mach modulation-frequency setting: zero for undemodulated analytic RF, and the dataset carrier/transmit frequency for baseband IQ (5.208 MHz for PICMUS).
 
 ## Record
 

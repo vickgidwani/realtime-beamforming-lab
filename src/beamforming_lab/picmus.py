@@ -6,7 +6,7 @@ import io
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import numpy as np
 
@@ -19,6 +19,17 @@ PICMUS_FILE = "PICMUS_experiment_resolution_distortion.uff"
 PICMUS_SIZE_BYTES = 145_518_524
 PICMUS_SHA256 = "c93af0781daeebf771e53a42a629d4f311407410166ef2f1d227e9d2a1b8c641"
 ARRAY_ARGUMENTS = ("channel_data", "rx_coords_m", "scan_coords_m", "tx_wave_arrivals_s")
+
+
+@contextlib.contextmanager
+def _nvtx_range(cp: Any, name: str, enabled: bool) -> Iterator[None]:
+    if enabled and cp is not None:
+        cp.cuda.nvtx.RangePush(name)
+    try:
+        yield
+    finally:
+        if enabled and cp is not None:
+            cp.cuda.nvtx.RangePop()
 
 
 @dataclass(frozen=True)
@@ -65,8 +76,20 @@ def load_picmus_workload() -> PicmusWorkload:
         key: np.ascontiguousarray(value) if isinstance(value, np.ndarray) else value
         for key, value in beamform_args.items()
     }
+    # pyuff_ustb/mach currently provides these scalar inputs as 0-D arrays,
+    # while mach's compiled beamformer overloads require Python floats.
+    for key in ("sampling_freq_hz", "modulation_freq_hz"):
+        beamform_args[key] = float(np.asarray(beamform_args[key]).item())
 
     channel_array = np.asarray(beamform_args["channel_data"])
+    beamform_input_arrays = {
+        key: {
+            "shape": list(np.asarray(beamform_args[key]).shape),
+            "dtype": str(np.asarray(beamform_args[key]).dtype),
+            "nbytes": int(np.asarray(beamform_args[key]).nbytes),
+        }
+        for key in ARRAY_ARGUMENTS
+    }
     tx_angles_deg = [
         float(np.rad2deg(wave.source.azimuth)) for wave in channel_data.sequence
     ]
@@ -99,6 +122,10 @@ def load_picmus_workload() -> PicmusWorkload:
             "element_count": int(channel_data.probe.N),
             "samples_per_transmit": int(channel_array.shape[2]),
             "frame_count": int(channel_array.shape[3]),
+            "beamform_input_arrays": beamform_input_arrays,
+            "beamform_input_bytes_total": int(
+                sum(item["nbytes"] for item in beamform_input_arrays.values())
+            ),
             "transmit_angles_deg_min_max": [min(tx_angles_deg), max(tx_angles_deg)],
             "sampling_frequency_hz": float(channel_data.sampling_frequency),
             "modulation_frequency_hz": float(channel_data.modulation_frequency),
@@ -136,6 +163,7 @@ def benchmark_picmus(
     runs: int,
     warmup: int,
     deadline_ms: float | None,
+    nvtx: bool = False,
 ) -> tuple[dict[str, Any], np.ndarray]:
     """Measure single-frame, 75-angle coherent compounding latency."""
     if mode not in ("numpy", "cupy"):
@@ -143,27 +171,30 @@ def benchmark_picmus(
     if runs < 1 or warmup < 0:
         raise ValueError("runs must be positive and warmup nonnegative")
 
-    from mach import experimental
-
-    workload = load_picmus_workload()
-    beamform_args = dict(workload.beamform_args)
     cp = None
-    if mode == "cupy":
-        try:
-            import cupy as cp
-        except ImportError as exc:
+    try:
+        import cupy as cp
+    except ImportError as exc:
+        if mode == "cupy" or nvtx:
             raise RuntimeError(
-                "CuPy is required for `--mode cupy`; install the CUDA extra on "
-                "the NVIDIA host."
+                "CuPy is required for `--mode cupy` and for `--nvtx`; install "
+                "the CUDA extra on the NVIDIA host."
             ) from exc
 
+    from mach import experimental
+
+    with _nvtx_range(cp, "setup/dataset_load_and_geometry", nvtx):
+        workload = load_picmus_workload()
+    beamform_args = dict(workload.beamform_args)
+
     input_upload_ms = 0.0
-    if cp is not None:
-        upload_start_ns = time.perf_counter_ns()
-        for key in ARRAY_ARGUMENTS:
-            beamform_args[key] = cp.asarray(beamform_args[key])
-        cp.cuda.Device().synchronize()
-        input_upload_ms = (time.perf_counter_ns() - upload_start_ns) / 1_000_000
+    if cp is not None and mode == "cupy":
+        with _nvtx_range(cp, "setup/input_upload", nvtx):
+            upload_start_ns = time.perf_counter_ns()
+            for key in ARRAY_ARGUMENTS:
+                beamform_args[key] = cp.asarray(beamform_args[key])
+            cp.cuda.Device().synchronize()
+            input_upload_ms = (time.perf_counter_ns() - upload_start_ns) / 1_000_000
 
     event_cp = cp
     if event_cp is None:
@@ -179,7 +210,16 @@ def benchmark_picmus(
             event_end = event_cp.cuda.Event()
             event_start.record()
         start_ns = time.perf_counter_ns()
-        result = experimental.beamform(**beamform_args)
+        call_args = beamform_args
+        if cp is not None and mode == "numpy":
+            # mach's CUDA compound API creates a CuPy output internally and
+            # cannot dispatch mixed NumPy-input/CuPy-output arguments. Keep
+            # the source arrays host-resident, but stage them on every call so
+            # these HtoD copies remain inside the measured range.
+            call_args = dict(beamform_args)
+            for key in ARRAY_ARGUMENTS:
+                call_args[key] = cp.asarray(beamform_args[key])
+        result = experimental.beamform(**call_args)
         if event_end is not None:
             event_end.record()
             event_cp.cuda.Device().synchronize()
@@ -190,25 +230,28 @@ def benchmark_picmus(
         return result, float(wall_ms), device_ms
 
     for _ in range(warmup):
-        run_once()
+        with _nvtx_range(cp, f"warmup/beamform/{mode}", nvtx):
+            run_once()
 
     wall_latencies: list[float] = []
     device_latencies: list[float] = []
     latest_result: Any = None
     for _ in range(runs):
-        latest_result, wall_ms, device_ms = run_once()
+        with _nvtx_range(cp, f"measure/beamform/{mode}", nvtx):
+            latest_result, wall_ms, device_ms = run_once()
         wall_latencies.append(wall_ms)
         if device_ms is not None:
             device_latencies.append(device_ms)
 
     output_transfer_ms = 0.0
     output_start_ns = time.perf_counter_ns()
-    if cp is not None and isinstance(latest_result, cp.ndarray):
-        result_host = cp.asnumpy(latest_result)
-    else:
-        result_host = np.asarray(latest_result)
-    if cp is not None:
-        cp.cuda.Device().synchronize()
+    with _nvtx_range(cp, "output/bmode_d2h", nvtx):
+        if cp is not None and isinstance(latest_result, cp.ndarray):
+            result_host = cp.asnumpy(latest_result)
+        else:
+            result_host = np.asarray(latest_result)
+        if cp is not None:
+            cp.cuda.Device().synchronize()
     output_transfer_ms = (time.perf_counter_ns() - output_start_ns) / 1_000_000
     bmode_image = np.abs(result_host).reshape(workload.grid_shape).astype(np.float32)
 
@@ -228,6 +271,7 @@ def benchmark_picmus(
         "output_bmode_transfer_ms_last_run": float(output_transfer_ms),
         "warmup_runs": warmup,
         "measurement_runs": runs,
+        "nvtx_ranges_enabled": nvtx,
         "deadline_ms": deadline_ms,
         "deadline_misses_compounded_image": deadline_misses,
         "deadline_miss_rate": (
@@ -240,7 +284,7 @@ def benchmark_picmus(
             "Each measurement reconstructs one pre-acquired image by coherently compounding all transmit angles.",
             "PICMUS has one frame in this file; these are reconstruction timings, not a streaming fUSI deadline or acquisition-to-output latency.",
             "Dataset download, UFF parsing, setup, and final output transfer are reported separately from per-run wall latency.",
-            "In cupy mode, input and geometry arrays are uploaded once and reused; in numpy mode mach receives host arrays on each call.",
+            "In numpy mode, host source arrays are staged to CuPy on each call, so HtoD copies are part of the repeated-call timings; in cupy mode, the arrays are uploaded once and reused.",
         ],
     }
     # Import locally to keep the provenance helper optional for library users.

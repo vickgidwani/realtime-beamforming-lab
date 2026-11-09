@@ -39,6 +39,8 @@ Each benchmark report stores the RF-array shape, dtype, and a SHA-256 fingerprin
 | Raw file fingerprint | 145,518,524 bytes; SHA-256 `c93af0781daeebf771e53a42a629d4f311407410166ef2f1d227e9d2a1b8c641` (verified by the pinned mach example's downloader) |
 | Data type | Experimental phantom ultrasound channel data in UFF format |
 | Acquisition described by mach example | 128-element linear array; 75 plane-wave transmissions from −16° to +16°; 3,328 samples per acquisition; one frame; 20.8 MHz sampling frequency |
+| Transmit frequency | 5.208 MHz, from the [PICMUS transmit-pulse specification](https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/transmit_pulse); the challenge says this was the nearest Verasonics Vantage setting to the roughly 5.13 MHz target |
+| UFF pulse metadata | `channel_data.pulse` is absent in this file; `modulation_frequency = 0` marks raw RF for Mach’s Hilbert path and is not the transmit frequency |
 | Imaging grid | 387 lateral × 609 depth points in the example setup |
 | Dataset citation | The UFF embeds dataset authorship metadata. The loader captures `channel_data.print_authorship()` output in benchmark provenance when the installed reader exposes it. Follow the attribution displayed in the file and the [PICMUS challenge](https://www.creatis.insa-lyon.fr/Challenge/IEEE_IUS_2016/) requirements. |
 | License | The raw UFF file is cached locally and is not redistributed by this repository. Follow the dataset's published reuse terms; the repository's MIT license covers code only. |

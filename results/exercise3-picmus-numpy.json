@@ -1,0 +1,145 @@
+{
+  "dataset": "PICMUS experimental resolution/distortion phantom",
+  "data_provenance": {
+    "dataset_id": "PICMUS_experiment_resolution_distortion.uff",
+    "dataset_type": "experimental resolution/distortion phantom",
+    "source_url": "https://zenodo.org/records/20261898/files/PICMUS_experiment_resolution_distortion.uff",
+    "retrieval": "mach.io.utils.cached_download; cached outside the repository",
+    "raw_file_size_bytes": 145518524,
+    "raw_file_sha256": "c93af0781daeebf771e53a42a629d4f311407410166ef2f1d227e9d2a1b8c641",
+    "file_integrity": "verified by mach cached_download against expected size and SHA-256",
+    "channel_data_shape_transmits_elements_samples_frames": [
+      75,
+      128,
+      3328,
+      1
+    ],
+    "transmit_count": 75,
+    "element_count": 128,
+    "samples_per_transmit": 3328,
+    "frame_count": 1,
+    "beamform_input_arrays": {
+      "channel_data": {
+        "shape": [
+          75,
+          128,
+          3328,
+          1
+        ],
+        "dtype": "complex64",
+        "nbytes": 255590400
+      },
+      "rx_coords_m": {
+        "shape": [
+          128,
+          3
+        ],
+        "dtype": "float32",
+        "nbytes": 1536
+      },
+      "scan_coords_m": {
+        "shape": [
+          235683,
+          3
+        ],
+        "dtype": "float32",
+        "nbytes": 2828196
+      },
+      "tx_wave_arrivals_s": {
+        "shape": [
+          75,
+          235683
+        ],
+        "dtype": "float64",
+        "nbytes": 141409800
+      }
+    },
+    "beamform_input_bytes_total": 399829932,
+    "transmit_angles_deg_min_max": [
+      -15.999999046325684,
+      15.999999046325684
+    ],
+    "sampling_frequency_hz": 20832000.0,
+    "modulation_frequency_hz": 0.0,
+    "sound_speed_m_s": 1540.0,
+    "scan_grid_shape_lateral_depth": [
+      387,
+      609
+    ],
+    "uff_authorship_metadata": null,
+    "license_note": "The raw UFF file is downloaded and cached, not redistributed by this repository. Follow the dataset's embedded attribution and published reuse terms."
+  },
+  "runtime_provenance": {
+    "python": "3.13.16",
+    "platform": "Linux-6.6.159+-x86_64-with-glibc2.39",
+    "cpu_count": 2,
+    "packages": {
+      "numpy": "2.4.6",
+      "mach_beamform": "0.2.1",
+      "cupy_cuda12x": null,
+      "cupy_cuda13x": "14.0.1",
+      "pymust": "0.1.9"
+    },
+    "gpu": {
+      "name": "Tesla T4",
+      "compute_capability": "7.5",
+      "memory_bytes": 15637086208,
+      "driver_version": "13.0",
+      "runtime_version": "13.0"
+    },
+    "git_revision": "fe85819c26920256b37a5323140831d29823857f",
+    "command": [
+      "beamform-lab",
+      "benchmark",
+      "--dataset",
+      "picmus",
+      "--mode",
+      "numpy",
+      "--runs",
+      "20",
+      "--warmup",
+      "2",
+      "--save-image",
+      "artifacts/exercise3-picmus-numpy-bmode.npy",
+      "--output",
+      "results/exercise3-picmus-numpy.json"
+    ]
+  },
+  "array_mode": "numpy",
+  "scan_grid_shape_lateral_depth": [
+    387,
+    609
+  ],
+  "dataset_load_and_setup_ms_once": 3216.236094,
+  "input_upload_ms_once": 0.0,
+  "output_bmode_transfer_ms_last_run": 0.693506,
+  "warmup_runs": 2,
+  "measurement_runs": 20,
+  "nvtx_ranges_enabled": false,
+  "deadline_ms": null,
+  "deadline_misses_compounded_image": null,
+  "deadline_miss_rate": null,
+  "coherent_compounding_wall_ms": {
+    "count": 20,
+    "p50": 223.7765035,
+    "p95": 228.05927195,
+    "p99": 239.42449358999997,
+    "p99_9": 241.98166845900002,
+    "max": 242.265799
+  },
+  "beamform_device_event_ms": {
+    "count": 20,
+    "p50": 223.75629425048828,
+    "p95": 228.035319519043,
+    "p99": 239.39790863037106,
+    "p99_9": 241.95449118041995,
+    "max": 242.23855590820312
+  },
+  "mean_bmode_magnitude": 1.8653817176818848,
+  "notes": [
+    "Each measurement reconstructs one pre-acquired image by coherently compounding all transmit angles.",
+    "PICMUS has one frame in this file; these are reconstruction timings, not a streaming fUSI deadline or acquisition-to-output latency.",
+    "Dataset download, UFF parsing, setup, and final output transfer are reported separately from per-run wall latency.",
+    "In numpy mode, host source arrays are staged to CuPy on each call, so HtoD copies are part of the repeated-call timings; in cupy mode, the arrays are uploaded once and reused."
+  ]
+}

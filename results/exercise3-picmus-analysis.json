@@ -1,0 +1,58 @@
+{
+  "gpu": "Tesla T4",
+  "dataset": "PICMUS_experiment_resolution_distortion.uff",
+  "git_revision": "fe85819c26920256b37a5323140831d29823857f",
+  "transmit_count": 75,
+  "frame_count": 1,
+  "scan_grid_shape_lateral_depth": [
+    387,
+    609
+  ],
+  "beamform_input_bytes_total": 399829932,
+  "image_shape": [
+    387,
+    609
+  ],
+  "normalized_relative_l2_error": 0.0,
+  "normalized_max_absolute_error": 0.0,
+  "numpy_wall_ms": {
+    "count": 20,
+    "p50": 223.7765035,
+    "p95": 228.05927195,
+    "p99": 239.42449358999997,
+    "p99_9": 241.98166845900002,
+    "max": 242.265799
+  },
+  "cupy_wall_ms": {
+    "count": 20,
+    "p50": 116.091316,
+    "p95": 119.21818155,
+    "p99": 123.92889790999999,
+    "p99_9": 124.98880909100001,
+    "max": 125.106577
+  },
+  "numpy_cuda_event_ms": {
+    "count": 20,
+    "p50": 223.75629425048828,
+    "p95": 228.035319519043,
+    "p99": 239.39790863037106,
+    "p99_9": 241.95449118041995,
+    "max": 242.23855590820312
+  },
+  "cupy_cuda_event_ms": {
+    "count": 20,
+    "p50": 116.06114959716797,
+    "p95": 119.19761505126954,
+    "p99": 123.90178497314453,
+    "p99_9": 124.96022320556642,
+    "max": 125.07782745361328
+  },
+  "numpy_setup_ms": 3216.236094,
+  "cupy_setup_ms": 3157.326899,
+  "numpy_input_upload_ms": 0.0,
+  "cupy_input_upload_ms": 490.259385,
+  "numpy_output_transfer_ms": 0.693506,
+  "cupy_output_transfer_ms": 0.902572,
+  "cupy_wall_p50_saving_ms": 107.68518749999998,
+  "approximate_break_even_images": 5
+}

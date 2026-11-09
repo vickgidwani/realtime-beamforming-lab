@@ -32,6 +32,11 @@ def _parser() -> argparse.ArgumentParser:
             "report separately from steady-state latency"
         ),
     )
+    run.add_argument(
+        "--nvtx",
+        action="store_true",
+        help="add NVTX stage ranges for the PICMUS benchmark trace",
+    )
     run.add_argument("--output", type=Path)
     run.add_argument("--save-power", type=Path)
     run.add_argument("--save-image", type=Path)
@@ -71,6 +76,8 @@ def main(argv: Sequence[str] | None = None) -> None:
         raise ValueError("deadline_ms must be positive")
 
     if args.dataset == "pymust":
+        if args.nvtx:
+            raise ValueError("--nvtx is currently available only with --dataset picmus")
         if args.save_image is not None:
             raise ValueError("--save-image is only available with --dataset picmus")
         workload = load_pymust_doppler_workload(
@@ -103,6 +110,7 @@ def main(argv: Sequence[str] | None = None) -> None:
             runs=args.runs if args.runs is not None else 20,
             warmup=args.warmup if args.warmup is not None else 2,
             deadline_ms=args.deadline_ms,
+            nvtx=args.nvtx,
         )
 
     print(json.dumps(report, indent=2))
