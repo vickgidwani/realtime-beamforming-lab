@@ -1,13 +1,17 @@
-"""Run one Exercise 5 scheduled trial for a capture-range Nsight Systems trace.
+"""Run one Exercise 5 scheduled trial for an Nsight Systems trace.
 
-From the repository root on the Colab T4, capture the overlapped path with:
+From the repository root on the Colab T4, profile the short overlapped replay:
 
     nsys profile --trace=cuda,nvtx,osrt --sample=none \
-        --capture-range=nvtx \
-        --nvtx-capture=exercise5/cython/overlapped/10000Hz \
         --output=artifacts/exercise5-scheduled-overlapped-10khz \
         --force-overwrite=true \
         python scripts/exercise5_scheduled_trace.py --mode overlapped
+
+Then restrict CLI summaries to the marked trial range:
+
+    nsys stats --filter-nvtx exercise5/cython/overlapped/10000Hz \
+        --report nvtx_sum,cuda_gpu_kern_sum,cuda_gpu_mem_time_sum,cuda_api_sum \
+        artifacts/exercise5-scheduled-overlapped-10khz.nsys-rep
 
 The runner executes only the notebook's configuration, runtime, data, and
 implementation cells. Cython compilation and a CUDA warmup happen before the
@@ -78,7 +82,7 @@ def main() -> None:
             f"and no greater than the notebook replay ({full_replay_frames})"
         )
 
-    # The NVTX filter excludes extension compilation, data loading, and first-use CUDA setup.
+    # Keep setup and warmup outside the trial range used for filtered analysis.
     runtime["_load_cython_scheduler"]()
     runtime["_gpu_warmup"]()
     cp.cuda.Device().synchronize()
