@@ -1,0 +1,402 @@
+diff --git a/src/mach/_cuda_impl.pyi b/src/mach/_cuda_impl.pyi
+index d99a012..11aaded 100644
+--- a/src/mach/_cuda_impl.pyi
++++ b/src/mach/_cuda_impl.pyi
+@@ -35,6 +35,8 @@ def beamform(
+     modulation_freq_hz: float,
+     tukey_alpha: float = 0.5,
+     interp_type: InterpolationType = InterpolationType.Linear,
++    synchronize: bool = True,
++    stream_ptr: int = 0,
+ ) -> None: ...
+ @overload
+ def beamform(
+@@ -50,4 +52,6 @@ def beamform(
+     modulation_freq_hz: float = 0.0,
+     tukey_alpha: float = 0.5,
+     interp_type: InterpolationType = InterpolationType.Linear,
++    synchronize: bool = True,
++    stream_ptr: int = 0,
+ ) -> None: ...
+diff --git a/src/mach/kernel.cu b/src/mach/kernel.cu
+index 41063d9..533eb1d 100644
+--- a/src/mach/kernel.cu
++++ b/src/mach/kernel.cu
+@@ -5,6 +5,7 @@
+ #include <iostream>
+ #include <cmath>
+ #include <complex>
++#include <cstdint>
+ #include <cstdio>
+ #include <optional>
+ 
+@@ -738,7 +739,9 @@ void _beamform_impl(
+     float sound_speed_m_s,
+     float modulation_freq_hz,
+     float tukey_alpha,
+-    InterpolationType interp_type
++    InterpolationType interp_type,
++    bool synchronize,
++    cudaStream_t stream
+ ) {
+ #ifdef CUDA_PROFILE
+     TIME_FUNCTION();
+@@ -821,7 +824,7 @@ void _beamform_impl(
+     // which only times the kernel execution, not the kernel launch
+     checkCudaErrors(cudaEventCreate(&start));
+     checkCudaErrors(cudaEventCreate(&stop));
+-    checkCudaErrors(cudaEventRecord(start));
++    checkCudaErrors(cudaEventRecord(start, stream));
+ #endif
+ 
+     // Process all voxels with the kernel
+@@ -830,7 +833,7 @@ void _beamform_impl(
+     if (apod_flag) {
+         if (interp_type == InterpolationType::NearestNeighbor) {
+             checkCudaErrors(cudaFuncSetCacheConfig(beamformKernel<DataType, true, InterpolationType::NearestNeighbor>, CACHE_CONFIG));
+-            beamformKernel<DataType, true, InterpolationType::NearestNeighbor><<<grid, threads_per_block>>>(
++            beamformKernel<DataType, true, InterpolationType::NearestNeighbor><<<grid, threads_per_block, 0, stream>>>(
+                 d_channel_data, n_frames, n_receive_elements, n_samples,
+                 d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 sampling_freq_hz, inv_sound_speed_m_s, modulation_freq_hz,
+@@ -838,7 +841,7 @@ void _beamform_impl(
+             );
+         } else if (interp_type == InterpolationType::Linear) {
+             checkCudaErrors(cudaFuncSetCacheConfig(beamformKernel<DataType, true, InterpolationType::Linear>, CACHE_CONFIG));
+-            beamformKernel<DataType, true, InterpolationType::Linear><<<grid, threads_per_block>>>(
++            beamformKernel<DataType, true, InterpolationType::Linear><<<grid, threads_per_block, 0, stream>>>(
+                 d_channel_data, n_frames, n_receive_elements, n_samples,
+                 d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 sampling_freq_hz, inv_sound_speed_m_s, modulation_freq_hz,
+@@ -846,7 +849,7 @@ void _beamform_impl(
+             );
+         } else { // Quadratic interpolation
+             checkCudaErrors(cudaFuncSetCacheConfig(beamformKernel<DataType, true, InterpolationType::Quadratic>, CACHE_CONFIG));
+-            beamformKernel<DataType, true, InterpolationType::Quadratic><<<grid, threads_per_block>>>(
++            beamformKernel<DataType, true, InterpolationType::Quadratic><<<grid, threads_per_block, 0, stream>>>(
+                 d_channel_data, n_frames, n_receive_elements, n_samples,
+                 d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 sampling_freq_hz, inv_sound_speed_m_s, modulation_freq_hz,
+@@ -856,7 +859,7 @@ void _beamform_impl(
+     } else {
+         if (interp_type == InterpolationType::NearestNeighbor) {
+             checkCudaErrors(cudaFuncSetCacheConfig(beamformKernel<DataType, false, InterpolationType::NearestNeighbor>, CACHE_CONFIG));
+-            beamformKernel<DataType, false, InterpolationType::NearestNeighbor><<<grid, threads_per_block>>>(
++            beamformKernel<DataType, false, InterpolationType::NearestNeighbor><<<grid, threads_per_block, 0, stream>>>(
+                 d_channel_data, n_frames, n_receive_elements, n_samples,
+                 d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 sampling_freq_hz, inv_sound_speed_m_s, modulation_freq_hz,
+@@ -864,7 +867,7 @@ void _beamform_impl(
+             );
+         } else if (interp_type == InterpolationType::Linear) {
+             checkCudaErrors(cudaFuncSetCacheConfig(beamformKernel<DataType, false, InterpolationType::Linear>, CACHE_CONFIG));
+-            beamformKernel<DataType, false, InterpolationType::Linear><<<grid, threads_per_block>>>(
++            beamformKernel<DataType, false, InterpolationType::Linear><<<grid, threads_per_block, 0, stream>>>(
+                 d_channel_data, n_frames, n_receive_elements, n_samples,
+                 d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 sampling_freq_hz, inv_sound_speed_m_s, modulation_freq_hz,
+@@ -872,7 +875,7 @@ void _beamform_impl(
+             );
+         } else { // Quadratic interpolation
+             checkCudaErrors(cudaFuncSetCacheConfig(beamformKernel<DataType, false, InterpolationType::Quadratic>, CACHE_CONFIG));
+-            beamformKernel<DataType, false, InterpolationType::Quadratic><<<grid, threads_per_block>>>(
++            beamformKernel<DataType, false, InterpolationType::Quadratic><<<grid, threads_per_block, 0, stream>>>(
+                 d_channel_data, n_frames, n_receive_elements, n_samples,
+                 d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 sampling_freq_hz, inv_sound_speed_m_s, modulation_freq_hz,
+@@ -880,19 +883,30 @@ void _beamform_impl(
+             );
+         }
+     }
+-    // Wait for kernel to complete
+-    checkCudaErrors(cudaDeviceSynchronize());
++    // Async calls are restricted to caller-owned CUDA arrays; callers must keep
++    // those arrays alive and order any consumers after this stream until completion.
++    if (synchronize) {
++        if (stream == nullptr) {
++            checkCudaErrors(cudaDeviceSynchronize());
++        } else {
++            checkCudaErrors(cudaStreamSynchronize(stream));
++        }
++    } else {
++        checkCudaErrors(cudaPeekAtLastError());
++    }
+ 
+ #ifdef CUDA_PROFILE
+     } // End of kernel_execution section
+ 
+-    checkCudaErrors(cudaEventRecord(stop));
+-    checkCudaErrors(cudaEventSynchronize(stop));
++    checkCudaErrors(cudaEventRecord(stop, stream));
++    if (synchronize) {
++        checkCudaErrors(cudaEventSynchronize(stop));
+ 
+-    // Calculate and print elapsed time
+-    float milliseconds = 0;
+-    checkCudaErrors(cudaEventElapsedTime(&milliseconds, start, stop));
+-    std::cout << "Kernel execution time: " << milliseconds << " ms" << std::endl;
++        // Calculate and print elapsed time
++        float milliseconds = 0;
++        checkCudaErrors(cudaEventElapsedTime(&milliseconds, start, stop));
++        std::cout << "Kernel execution time: " << milliseconds << " ms" << std::endl;
++    }
+ 
+     // Clean up timing events
+     checkCudaErrors(cudaEventDestroy(start));
+@@ -1052,7 +1066,9 @@ void beamform(
+     float sound_speed_m_s,
+     float modulation_freq_hz,
+     float tukey_alpha,
+-    InterpolationType interp_type
++    InterpolationType interp_type,
++    bool synchronize,
++    std::uintptr_t stream_ptr
+ ) {
+ #ifdef CUDA_PROFILE
+     TIME_FUNCTION();
+@@ -1075,6 +1091,17 @@ void beamform(
+ 
+     // If all arrays are already on CUDA, use the direct kernel call
+     bool all_cuda = (cpu_count == 0);
++    if (stream_ptr != 0 && !all_cuda) {
++        throw std::invalid_argument(
++            "an explicit stream requires all inputs and output to be CUDA-resident."
++        );
++    }
++    if (!synchronize && !all_cuda) {
++        throw std::invalid_argument(
++            "synchronize=False requires all inputs and output to be CUDA-resident; "
++            "the caller must retain these arrays until GPU work completes."
++        );
++    }
+     if (all_cuda) {
+         // All arrays are on GPU - use direct kernel call
+         const float3* d_rx_coords_m = reinterpret_cast<const float3*>(rx_coords_m.data());
+@@ -1086,13 +1113,15 @@ void beamform(
+             float2* d_out = reinterpret_cast<float2*>(out.data());
+             _beamform_impl<float2>(d_channel_data, d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 n_receive_elements, n_samples, n_output_voxels, n_frames,
+-                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type);
++                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type,
++                synchronize, reinterpret_cast<cudaStream_t>(stream_ptr));
+         } else if constexpr (std::is_same_v<DataType, float>) {
+             const float* d_channel_data = channel_data.data();
+             float* d_out = out.data();
+             _beamform_impl<float>(d_channel_data, d_rx_coords_m, d_scan_coords_m, d_tx_arrivals_s, d_out,
+                 n_receive_elements, n_samples, n_output_voxels, n_frames,
+-                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type);
++                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type,
++                synchronize, reinterpret_cast<cudaStream_t>(stream_ptr));
+         }
+         return;
+     }
+@@ -1179,7 +1208,9 @@ void beamform(
+             sound_speed_m_s,
+             modulation_freq_hz,
+             tukey_alpha,
+-            interp_type
++            interp_type,
++            true,
++            nullptr
+         );
+     } else if constexpr (std::is_same_v<DataType, float>) {
+         _beamform_impl<float>(
+@@ -1198,7 +1229,9 @@ void beamform(
+             sound_speed_m_s,
+             modulation_freq_hz,
+             tukey_alpha,
+-            interp_type
++            interp_type,
++            true,
++            nullptr
+         );
+     }
+ #ifdef CUDA_PROFILE
+@@ -1248,7 +1281,9 @@ NB_MODULE(_cuda_impl, m) {
+         "sound_speed_m_s"_a,
+         "modulation_freq_hz"_a,
+         "tukey_alpha"_a = 0.5f,
+-        "interp_type"_a = InterpolationType::Linear);
++        "interp_type"_a = InterpolationType::Linear,
++        "synchronize"_a = true,
++        "stream_ptr"_a = 0);
+ 
+     m.def("beamform", &beamform<float>,
+         "channel_data"_a.noconvert(),
+@@ -1262,5 +1297,7 @@ NB_MODULE(_cuda_impl, m) {
+         "sound_speed_m_s"_a,
+         "modulation_freq_hz"_a = 0.0f,
+         "tukey_alpha"_a = 0.5f,
+-        "interp_type"_a = InterpolationType::Linear);
++        "interp_type"_a = InterpolationType::Linear,
++        "synchronize"_a = true,
++        "stream_ptr"_a = 0);
+ }
+diff --git a/src/mach/kernel.py b/src/mach/kernel.py
+index c27a35a..99c1063 100644
+--- a/src/mach/kernel.py
++++ b/src/mach/kernel.py
+@@ -33,6 +33,8 @@ def beamform(  # noqa: C901
+     modulation_freq_hz: float | None = None,
+     tukey_alpha: float = 0.5,
+     interp_type: InterpolationType = InterpolationType.Linear,
++    synchronize: bool = True,
++    stream: object | None = None,
+ ) -> Array:
+     """CUDA ultrasound beamforming with automatic GPU/CPU dispatch.
+ 
+@@ -102,6 +104,17 @@ def beamform(  # noqa: C901
+             - InterpolationType.NearestNeighbor: Nearest neighbor (fastest, lower quality)
+             - InterpolationType.Linear: Linear interpolation (default, good balance)
+             - InterpolationType.Quadratic: Quadratic interpolation (higher quality, slower)
++        synchronize:
++            Wait for GPU work before returning. Set to False only when all arrays are
++            CUDA-resident, correctly typed, and contiguous. Retain every input and
++            output array and order dependent work after the selected stream.
++        stream:
++            Optional CUDA stream exposing an integer `ptr` and a context manager.
++            When supplied, the kernel is launched on this stream. Arrays are imported
++            without an automatic DLPack stream handoff, so the caller must order all
++            inputs on this stream before the call (for example, with wait_event).
++            Explicit-stream calls require CUDA-resident arrays with the expected
++            dtypes and contiguous layouts.
+ 
+     Returns:
+         Beamformed data with shape (n_scan, nframes).
+@@ -211,6 +224,45 @@ def beamform(  # noqa: C901
+     xp_grid = array_namespace(scan_coords_m)
+     xp_idt = array_namespace(tx_wave_arrivals_s)
+ 
++    stream_ptr = 0
++    if stream is not None:
++        if (
++            not hasattr(stream, "ptr")
++            or not hasattr(stream, "__enter__")
++            or not hasattr(stream, "__exit__")
++        ):
++            raise TypeError("stream must expose an integer `ptr` and a context manager")
++        try:
++            stream_ptr = int(stream.ptr)
++        except (TypeError, ValueError) as exc:
++            raise TypeError("stream.ptr must be an integer CUDA stream handle") from exc
++
++    # The asynchronous native path returns before the kernel finishes. Do not allow
++    # implicit casts or contiguity fixes to create temporary arrays whose lifetime
++    # would end as soon as this wrapper returns.
++    if not synchronize or stream is not None:
++        is_iq_input = channel_data.dtype in (xp_data.complex64, xp_data.complex128)
++        expected_channel_dtype = xp_data.complex64 if is_iq_input else xp_data.float32
++        async_inputs = (
++            (channel_data, expected_channel_dtype, "channel_data"),
++            (rx_coords_m, xp_coords.float32, "rx_coords_m"),
++            (scan_coords_m, xp_grid.float32, "scan_coords_m"),
++            (tx_wave_arrivals_s, xp_idt.float32, "tx_wave_arrivals_s"),
++        )
++        for array, expected_dtype, name in async_inputs:
++            if array.dtype != expected_dtype:
++                raise ValueError(
++                    f"asynchronous or explicit-stream calls require {name} to already have dtype {expected_dtype}; "
++                    "convert it explicitly and retain the converted array until GPU work completes."
++                )
++            if not is_contiguous(cast(Array, array)):
++                raise ValueError(
++                    f"asynchronous or explicit-stream calls require {name} to be contiguous; "
++                    "make a contiguous array and retain it until GPU work completes."
++                )
++        if out is not None and not is_contiguous(cast(Array, out)):
++            raise ValueError("asynchronous or explicit-stream calls require out to be contiguous")
++
+     # Ensure arrays have required DLPack methods
+     for arr, name in [
+         (channel_data, "channel_data"),
+@@ -254,7 +306,11 @@ def beamform(  # noqa: C901
+     tx_wave_arrivals_s = try_contiguous(tx_wave_arrivals_s)
+ 
+     if out is None:
+-        out = xp_data.zeros((n_scan, nframes), dtype=output_dtype)
++        if stream is None:
++            out = xp_data.zeros((n_scan, nframes), dtype=output_dtype)
++        else:
++            with stream:  # type: ignore[attr-defined]
++                out = xp_data.zeros((n_scan, nframes), dtype=output_dtype)
+     else:
+         # Validate output array dtype matches input
+         expected_dtype = xp_data.complex64 if is_complex else xp_data.float32
+@@ -268,22 +324,63 @@ def beamform(  # noqa: C901
+ 
+     assert modulation_freq_hz is not None
+ 
++    if stream is not None:
++        stream_arrays = (
++            (channel_data, "channel_data"),
++            (rx_coords_m, "rx_coords_m"),
++            (scan_coords_m, "scan_coords_m"),
++            (tx_wave_arrivals_s, "tx_wave_arrivals_s"),
++            (out, "out"),
++        )
++        devices = []
++        for array, name in stream_arrays:
++            try:
++                device_type, device_id = array.__dlpack_device__()
++            except Exception as exc:
++                raise TypeError(f"explicit-stream {name} must support DLPack device reporting") from exc
++            if int(device_type) != 2:  # DLPack kDLCUDA
++                raise ValueError(f"explicit-stream {name} must be CUDA-resident")
++            devices.append(int(device_id))
++        if len(set(devices)) != 1:
++            raise ValueError("explicit-stream arrays must be on the same CUDA device")
++        stream_device_id = getattr(stream, "device_id", -1)
++        if stream_device_id not in (-1, devices[0]):
++            raise ValueError("stream and arrays must be on the same CUDA device")
++
++        def no_sync_dlpack(array: Array) -> object:
++            try:
++                return array.__dlpack__(stream=-1)
++            except TypeError as exc:
++                raise TypeError(
++                    "explicit-stream arrays must support __dlpack__(stream=-1); "
++                    "the caller is responsible for stream dependencies"
++                ) from exc
++
++        native_arrays = {name: no_sync_dlpack(array) for array, name in stream_arrays}
++    else:
++        native_arrays = {
++            "channel_data": channel_data,
++            "rx_coords_m": rx_coords_m,
++            "scan_coords_m": scan_coords_m,
++            "tx_wave_arrivals_s": tx_wave_arrivals_s,
++            "out": out,
++        }
++
+     # Nanobind's generated stub types these args as NumPy `ArrayLike`,
+     # but we intentionally pass broader DLPack-compatible arrays (NumPy/CuPy/JAX/custom),
+     # so we ignore the type error from nanobind's generated stub.
+-    nb_beamform(  # ty: ignore[no-matching-overload]
+-        channel_data=channel_data,
+-        rx_coords_m=rx_coords_m,
+-        scan_coords_m=scan_coords_m,
+-        tx_wave_arrivals_s=tx_wave_arrivals_s,
+-        out=out,
+-        f_number=f_number,
+-        rx_start_s=rx_start_s,
+-        sampling_freq_hz=sampling_freq_hz,
+-        sound_speed_m_s=sound_speed_m_s,
+-        modulation_freq_hz=modulation_freq_hz,
+-        tukey_alpha=tukey_alpha,
+-        interp_type=interp_type,
+-    )
++    call_kwargs = {
++        **native_arrays,
++        "f_number": f_number,
++        "rx_start_s": rx_start_s,
++        "sampling_freq_hz": sampling_freq_hz,
++        "sound_speed_m_s": sound_speed_m_s,
++        "modulation_freq_hz": modulation_freq_hz,
++        "tukey_alpha": tukey_alpha,
++        "interp_type": interp_type,
++        "synchronize": synchronize,
++        "stream_ptr": stream_ptr,
++    }
++    nb_beamform(**call_kwargs)  # ty: ignore[no-matching-overload]
+ 
+     return cast(Array, out)

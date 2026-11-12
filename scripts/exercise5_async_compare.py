@@ -31,7 +31,8 @@ import numpy as np
 from exercise5_scheduled_trace import ROOT, load_notebook_runtime
 
 
-MODES = ("overlapped", "synchronous_default", "async")
+BASE_MODES = ("overlapped", "synchronous_default", "async")
+EXPLICIT_STREAM_MODE = "async_explicit_stream"
 
 
 def summarize(result: dict[str, Any]) -> dict[str, Any]:
@@ -57,10 +58,12 @@ def summarize(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def run_scenario(runtime: dict[str, Any], rate_hz: int, frames: int) -> dict[str, dict[str, Any]]:
+def run_scenario(
+    runtime: dict[str, Any], rate_hz: int, frames: int, modes: tuple[str, ...]
+) -> dict[str, dict[str, Any]]:
     runtime["replay_frames"] = frames
     runs = {}
-    for mode in MODES:
+    for mode in modes:
         print(f"Running {mode}: {frames:,} frames at {rate_hz:,} Hz", flush=True)
         result = runtime["run_trial"](mode, rate_hz, producer_kind="cython")
         runs[mode] = result
@@ -81,6 +84,7 @@ def main() -> None:
     parser.add_argument("--accuracy-frames", type=int, default=512)
     parser.add_argument("--pipeline-rate-hz", type=int, default=10_000)
     parser.add_argument("--pipeline-frames", type=int, default=2_048)
+    parser.add_argument("--include-explicit-stream", action="store_true")
     parser.add_argument("--trace-only", action="store_true")
     args = parser.parse_args()
     if min(args.accuracy_rate_hz, args.pipeline_rate_hz) <= 0:
@@ -105,20 +109,22 @@ def main() -> None:
 
     # Keep compilation and the first launch outside the measured trials.
     runtime["_load_cython_scheduler"]()
-    runtime["_gpu_warmup"]()
+    runtime["_gpu_warmup"](explicit_stream=args.include_explicit_stream)
     cp.cuda.Device().synchronize()
+    modes = BASE_MODES + ((EXPLICIT_STREAM_MODE,) if args.include_explicit_stream else ())
 
     output: dict[str, Any] = {
         "mach_async_prototype": True,
+        "explicit_stream_prototype": args.include_explicit_stream,
         "device": cp.cuda.runtime.getDeviceProperties(cp.cuda.Device().id)["name"],
         "mach_version": runtime["package_metadata"].version("mach-beamform"),
-        "modes": list(MODES),
+        "modes": list(modes),
         "source_frame_count": frame_count,
     }
     map_payload: dict[str, np.ndarray] = {}
 
     if not args.trace_only:
-        accuracy_runs = run_scenario(runtime, args.accuracy_rate_hz, args.accuracy_frames)
+        accuracy_runs = run_scenario(runtime, args.accuracy_rate_hz, args.accuracy_frames, modes)
         reference = accuracy_runs["synchronous_default"]["power_map"]
         accuracy_summary = {}
         for mode, result in accuracy_runs.items():
@@ -137,7 +143,7 @@ def main() -> None:
             "results": accuracy_summary,
         }
 
-    pipeline_runs = run_scenario(runtime, args.pipeline_rate_hz, args.pipeline_frames)
+    pipeline_runs = run_scenario(runtime, args.pipeline_rate_hz, args.pipeline_frames, modes)
     output["scheduled_pipeline"] = {
         "rate_hz": args.pipeline_rate_hz,
         "offered_frames": args.pipeline_frames,
@@ -147,8 +153,9 @@ def main() -> None:
     print("\nComparison summary:")
     print(json.dumps(output, indent=2, default=str), flush=True)
     if not args.trace_only:
-        results_path = ROOT / "results" / "exercise5-mach-async-prototype.json"
-        maps_path = ROOT / "results" / "exercise5-mach-async-prototype-maps.npz"
+        stem = "exercise5-mach-explicit-stream" if args.include_explicit_stream else "exercise5-mach-async-prototype"
+        results_path = ROOT / "results" / f"{stem}.json"
+        maps_path = ROOT / "results" / f"{stem}-maps.npz"
         results_path.write_text(json.dumps(output, indent=2, default=str) + "\n")
         np.savez_compressed(maps_path, **map_payload)
         print(f"Saved: {results_path}")
