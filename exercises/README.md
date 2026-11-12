@@ -11,7 +11,7 @@ The labs are designed to make each performance claim traceable to a baseline, wo
 ## In progress and planned
 
 4. [RF analytic and baseband conversion](04-rf-to-iq-scaling.md) — [companion notebook](04-rf-to-iq-scaling.ipynb) is prepared for a Colab T4 run; it compares Hilbert and mix-and-filter conversion on CPU and GPU across PyMUST and PICMUS, including a CPU worker sweep and optional synthetic scaling.
-5. [Copy/compute overlap and tail latency](05-streaming-tail-latency.md) — replay a sustained stream and measure overlap, queue depth, frame drops, and deadlines.
+5. [Copy/compute overlap and tail latency](05-streaming-tail-latency.md) — [companion notebook](05-streaming-tail-latency.ipynb) is prepared for a Colab T4 run; it replays recorded phantom acquisitions through serialized and overlapped GPU paths, then measures latency, queueing, deadlines, and drops.
 6. [Custom DAS kernel](06-custom-das-kernel.md) — implement and profile a CUDA reference kernel, then tune memory access and work partitioning against `mach`; an optional extension compares phase-coherence weighting, a simple sparse prior, and minimum-variance beamforming for image quality and compute cost.
 
 Dataset sources, transformations, checksums, and attribution notes are documented in [DATA_PROVENANCE.md](../DATA_PROVENANCE.md).
