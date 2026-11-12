@@ -1,21 +1,31 @@
 # Exercise 5: streaming overlap and tail latency
 
-**Status: notebook prepared; Colab T4 run pending.** See the [companion notebook](05-streaming-tail-latency.ipynb).
+**Status: Cython 13-rate Colab T4 sweep complete; batch-size follow-up implemented and being run.** See the [companion notebook](05-streaming-tail-latency.ipynb) for the experiment and embedded outputs.
 
 ## Question
 
-Can the GPU beamforming pipeline sustain a stated replay rate, and what happens to frame latency, queue depth, deadlines, and drops as offered load approaches or exceeds service capacity?
+Can the GPU beamforming pipeline sustain a stated replay rate, and what happens to latency, queue depth, deadlines, and drops as offered load approaches or exceeds service capacity?
 
-## Experiment
+## Main comparison
 
-The notebook replays the 32 recorded PyMUST rotating-disk phantom acquisitions for 64 cycles per trial. It compares serialized pinned-memory H2D transfer and beamforming with a two-slot path that uses asynchronous copy and compute streams. A producer schedules arrivals at five rates from 1 to 15 kHz; the bounded queue holds eight waiting frames and drops the newest arrival when full. Setup and warmup are excluded from the measured trials.
+The notebook replays 32 recorded PyMUST rotating-disk phantom acquisitions for 256 cycles (8,192 offered frames) per trial. Its 13-rate matrix compares serialized pinned-memory H2D transfer and beamforming with a two-slot path that uses asynchronous copy and compute streams. Both modes use the same precompiled Cython producer, drop-newest policy, and eight-frame waiting queue. The producer schedules against absolute monotonic deadlines in a `nogil` section; enqueueing each frame still needs the Python GIL.
 
-Per-frame results include host-observed latency and queue wait, CUDA event time for H2D and beamforming plus power reduction, producer scheduling lateness, deadline misses, drops, and queue depth. The final power map is copied to the host once per trial. A one-ensemble reference checks the normalized map when no frames were dropped. Nsight Systems must confirm stream overlap before the result is described as actual copy/compute overlap.
+Per-frame results include host-observed latency and queue wait, CUDA event timings for H2D and beamform/power, producer scheduling lateness, deadline misses, drops, and queue depth. The final power map is copied to the host once per trial. Nsight Systems should confirm stream overlap before describing the path as actual copy/compute overlap.
 
-This is repeated recorded-data replay, not live scanner acquisition. The file has no continuous live timestamps; its nominal 10 kHz PRF is used as a reference point, while the notebook generates and records its own arrival schedule.
+This is repeated replay of stored data, not live scanner acquisition. The dataset has no continuous live timestamps; the notebook generates the arrival schedule using the nominal 10 kHz PRF as a reference point.
 
-## Run state
+## Main results
 
-The notebook is prepared for the Colab T4 runtime. The next step is to connect the VS Code kernel, run the install/setup cells, and execute the sweep. The Nsight attach or launch command will be selected after checking which `nsys` version is present in that runtime.
+The Cython 200 Hz baseline completed all 8,192 frames on time in both modes. At 500 Hz both modes had deadline misses but no drops. At 600 Hz the serialized run also dropped 30 frames, while overlapped dropped none; drops first appeared at 700 Hz in the overlapped run. By 1 kHz, no accepted frame completed within one input period.
+
+At 10 kHz, the 0.100 ms input period is much shorter than the GPU beamform-plus-power event (1.48–1.56 ms). The main run accepted 411 serialized frames and 354 overlapped frames; all accepted frames were late, so both modes had 100% total failure share. The Cython overlapped 10 kHz run had unusually high producer lateness, and the new B=1 batch replay provides a same-session check. Median H2D time (0.071–0.079 ms) was much smaller than GPU work. A larger queue would hold more stale work without increasing sustained service rate.
+
+## Follow-up: microbatch beamforming at 10 kHz
+
+The new section tests batch sizes B=1, 2, 4, 8, and 16 with the Cython producer and two-slot pipeline. It first checks Mach's batch axis offline against the B=1 power-Doppler reference, then runs the scheduled 8,192-frame replay. Reported outcomes include failure share, per-frame age, batch fill, host staging, H2D and GPU time, and image error when the full replay is accepted. Partial batches are zero-padded for the GPU call; only real acquisitions count toward frame metrics.
+
+For a batch representing S input slots at requested rate f, the batch deadline is the scheduled time of its last represented slot plus S/f. Missing arrivals are drops; every accepted member of a late batch counts as late. The notebook also reports the stricter one-period-per-frame miss share and acquisition-to-output age, so the batch-aware deadline does not hide freshness costs.
+
+The batch sweep is in progress; its result summary and saved artifacts will be added here after execution. The notebook writes `results/exercise5-batching-10khz.json`, `results/exercise5-batching-10khz-power-maps.npz`, and `results/exercise5-batching-10khz.png`.
 
 Dataset details: [DATA_PROVENANCE.md](../DATA_PROVENANCE.md#active-dataset-pymust-rotating-disk-doppler-phantom).
