@@ -21,6 +21,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
+import types
 from pathlib import Path
 from typing import Any
 
@@ -42,7 +44,12 @@ def load_notebook_runtime() -> dict[str, Any]:
         for cell in notebook["cells"]
         if cell.get("cell_type") == "code"
     }
-    namespace: dict[str, Any] = {"__name__": "__exercise5_trace__"}
+    module = types.ModuleType("__exercise5_trace__")
+    module.__file__ = str(NOTEBOOK)
+    # Dataclasses resolve annotated fields through sys.modules[cls.__module__].
+    # Register the notebook execution namespace just like a normal imported module.
+    sys.modules[module.__name__] = module
+    namespace = module.__dict__
     for cell_id in SETUP_CELL_IDS:
         if cell_id not in cells:
             raise RuntimeError(f"Notebook setup cell {cell_id!r} was not found")
