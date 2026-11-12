@@ -1,0 +1,188 @@
+{
+  "experiment": "Exercise 5 batch beamforming follow-up",
+  "run_date": "2026-11-12",
+  "source_revision": "204f198",
+  "runtime": {
+    "device": "Tesla T4",
+    "environment": "Google Colab"
+  },
+  "dataset": {
+    "dataset_id": "PyMUST example PWI_disk.mat",
+    "recording": "Tissue-mimicking rotating-disk phantom; not a brain or fUSI recording.",
+    "iq_shape_elements_samples_frames": [
+      128,
+      334,
+      32
+    ],
+    "iq_dtype": "complex64"
+  },
+  "configuration": {
+    "requested_rate_hz": 10000,
+    "offered_frames_per_batch_trial": 8192,
+    "batch_sizes": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "producer_kind": "cython",
+    "pipeline_mode": "overlapped",
+    "queue_capacity_frames": 8,
+    "max_batch_slots_in_flight": 2,
+    "offline_batch_repeats": 3,
+    "batch_deadline": "scheduled last represented slot plus represented_slots / requested_rate",
+    "strict_frame_deadline": "scheduled arrival plus one input period"
+  },
+  "offline_batch_results": [
+    {
+      "batch_size": 1,
+      "beamform_device_ms": 29.4148,
+      "beamform_host_call_ms": 29.459,
+      "one_time_upload_ms": 3.1593,
+      "ensemble_wall_ms": 38.839,
+      "frames_per_second_wall": 823.9,
+      "image_relative_rmse_vs_B1": 0.0
+    },
+    {
+      "batch_size": 2,
+      "beamform_device_ms": 20.5055,
+      "beamform_host_call_ms": 20.5236,
+      "one_time_upload_ms": 2.6534,
+      "ensemble_wall_ms": 26.616,
+      "frames_per_second_wall": 1202.3,
+      "image_relative_rmse_vs_B1": 1.177e-07
+    },
+    {
+      "batch_size": 4,
+      "beamform_device_ms": 13.609,
+      "beamform_host_call_ms": 13.6333,
+      "one_time_upload_ms": 2.584,
+      "ensemble_wall_ms": 18.062,
+      "frames_per_second_wall": 1771.7,
+      "image_relative_rmse_vs_B1": 1.159e-07
+    },
+    {
+      "batch_size": 8,
+      "beamform_device_ms": 5.6248,
+      "beamform_host_call_ms": 5.6356,
+      "one_time_upload_ms": 2.1694,
+      "ensemble_wall_ms": 8.903,
+      "frames_per_second_wall": 3594.3,
+      "image_relative_rmse_vs_B1": 1.145e-07
+    },
+    {
+      "batch_size": 16,
+      "beamform_device_ms": 3.0267199278,
+      "beamform_host_call_ms": 3.064653,
+      "one_time_upload_ms": 1.9928,
+      "ensemble_wall_ms": 5.840882,
+      "frames_per_second_wall": 5478.624632,
+      "image_relative_rmse_vs_B1": 1.1138372e-07
+    }
+  ],
+  "streaming_results": [
+    {
+      "batch_size_target": 1,
+      "requested_rate_hz": 10000,
+      "offered_frames": 8192,
+      "accepted_frames": 503,
+      "dropped_frames": 7689,
+      "batch_deadline_miss_frames": 503,
+      "strict_frame_deadline_miss_frames": 503,
+      "batch_deadline_failure_share_pct": 100.0,
+      "strict_frame_failure_share_pct": 100.0,
+      "dropped_pct_offered": 93.85986328125,
+      "late_pct_offered": 6.14013671875,
+      "completed_frames_per_s": 606.7467698,
+      "scheduled_age_p95_ms": 17.3208148,
+      "batch_wall_p50_ms": 1.570563,
+      "gpu_event_p50_ms_per_batch": 1.247648,
+      "batch_deadline_p50_ms": 0.1,
+      "image_relative_rmse": null
+    },
+    {
+      "batch_size_target": 2,
+      "requested_rate_hz": 10000,
+      "offered_frames": 8192,
+      "accepted_frames": 708,
+      "dropped_frames": 7484,
+      "batch_deadline_miss_frames": 708,
+      "strict_frame_deadline_miss_frames": 708,
+      "batch_deadline_failure_share_pct": 100.0,
+      "strict_frame_failure_share_pct": 100.0,
+      "dropped_pct_offered": 91.357421875,
+      "late_pct_offered": 8.642578125,
+      "completed_frames_per_s": 855.6745538,
+      "scheduled_age_p95_ms": 12.80642075,
+      "batch_wall_p50_ms": 2.287941,
+      "gpu_event_p50_ms_per_batch": 1.442991972,
+      "batch_deadline_p50_ms": 0.2,
+      "image_relative_rmse": null
+    },
+    {
+      "batch_size_target": 4,
+      "requested_rate_hz": 10000,
+      "offered_frames": 8192,
+      "accepted_frames": 880,
+      "dropped_frames": 7312,
+      "batch_deadline_miss_frames": 880,
+      "strict_frame_deadline_miss_frames": 880,
+      "batch_deadline_failure_share_pct": 100.0,
+      "strict_frame_failure_share_pct": 100.0,
+      "dropped_pct_offered": 89.2578125,
+      "late_pct_offered": 10.7421875,
+      "completed_frames_per_s": 1063.1942498,
+      "scheduled_age_p95_ms": 13.47672325,
+      "batch_wall_p50_ms": 3.644941,
+      "gpu_event_p50_ms_per_batch": 2.060271978,
+      "batch_deadline_p50_ms": 0.4,
+      "image_relative_rmse": null
+    },
+    {
+      "batch_size_target": 8,
+      "requested_rate_hz": 10000,
+      "offered_frames": 8192,
+      "accepted_frames": 1208,
+      "dropped_frames": 6984,
+      "batch_deadline_miss_frames": 1208,
+      "strict_frame_deadline_miss_frames": 1208,
+      "batch_deadline_failure_share_pct": 100.0,
+      "strict_frame_failure_share_pct": 100.0,
+      "dropped_pct_offered": 85.25390625,
+      "late_pct_offered": 14.74609375,
+      "completed_frames_per_s": 1462.953036,
+      "scheduled_age_p95_ms": 12.58595875,
+      "batch_wall_p50_ms": 5.371476,
+      "gpu_event_p50_ms_per_batch": 1.811552048,
+      "batch_deadline_p50_ms": 0.8,
+      "image_relative_rmse": null
+    },
+    {
+      "batch_size_target": 16,
+      "requested_rate_hz": 10000,
+      "offered_frames": 8192,
+      "accepted_frames": 952,
+      "dropped_frames": 7240,
+      "batch_deadline_miss_frames": 952,
+      "strict_frame_deadline_miss_frames": 952,
+      "batch_deadline_failure_share_pct": 100.0,
+      "strict_frame_failure_share_pct": 100.0,
+      "dropped_pct_offered": 88.37890625,
+      "late_pct_offered": 11.62109375,
+      "completed_frames_per_s": 1150.769874,
+      "scheduled_age_p95_ms": 16.0190189,
+      "batch_wall_p50_ms": 6.8321685,
+      "gpu_event_p50_ms_per_batch": 1.782175958,
+      "batch_deadline_p50_ms": 1.6,
+      "image_relative_rmse": null
+    }
+  ],
+  "interpretation": [
+    "Offline full-ensemble batch-axis results match B=1 to relative RMSE <= 1.18e-7.",
+    "Offline wall throughput rises from about 824 frames/s at B=1 to 5479 frames/s at B=16.",
+    "Scheduled replay throughput peaks at B=8 (about 1463 accepted frames/s), about 2.4x the fresh B=1 control.",
+    "At every streaming batch size, all accepted frames miss both deadlines; drops plus late completions equal all 8192 offered frames.",
+    "No streaming trial accepted the complete replay, so streaming image RMSE is unavailable; partial power maps are excluded."
+  ]
+}

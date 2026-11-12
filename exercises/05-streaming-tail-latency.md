@@ -1,6 +1,6 @@
 # Exercise 5: streaming overlap and tail latency
 
-**Status: Cython 13-rate Colab T4 sweep complete; batch-size follow-up implemented and being run.** See the [companion notebook](05-streaming-tail-latency.ipynb) for the experiment and embedded outputs.
+**Status: Cython 13-rate sweep and batch-size follow-up complete on a Colab T4.** See the [companion notebook](05-streaming-tail-latency.ipynb) for the experiment and embedded outputs.
 
 ## Question
 
@@ -26,6 +26,6 @@ The new section tests batch sizes B=1, 2, 4, 8, and 16 with the Cython producer 
 
 For a batch representing S input slots at requested rate f, the batch deadline is the scheduled time of its last represented slot plus S/f. Missing arrivals are drops; every accepted member of a late batch counts as late. The notebook also reports the stricter one-period-per-frame miss share and acquisition-to-output age, so the batch-aware deadline does not hide freshness costs.
 
-The batch sweep is in progress; its result summary and saved artifacts will be added here after execution. The notebook writes `results/exercise5-batching-10khz.json`, `results/exercise5-batching-10khz-power-maps.npz`, and `results/exercise5-batching-10khz.png`.
+The offline check preserved the full-ensemble image to relative RMSE <= 1.18e-7 and improved wall throughput from about 824 frames/s at B=1 to 5,479 at B=16. In the scheduled 10 kHz replay, B=8 peaked at about 1,463 accepted frames/s (2.4x the fresh B=1 control at 607 frames/s), but every offered frame still dropped or completed late. The B=8 p95 acquisition-to-output age was 12.59 ms; its batch budget was 0.8 ms versus a 1.81 ms median GPU event. No trial accepted the complete replay, so streaming image RMSE is unavailable and no partial power-map archive is retained. The summary and plot are saved as `results/exercise5-batching-10khz.json` and `results/exercise5-batching-10khz.png`; detailed interpretation and tables are in the notebook.
 
 Dataset details: [DATA_PROVENANCE.md](../DATA_PROVENANCE.md#active-dataset-pymust-rotating-disk-doppler-phantom).
