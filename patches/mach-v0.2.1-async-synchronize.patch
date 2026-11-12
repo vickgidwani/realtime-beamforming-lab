@@ -1,0 +1,115 @@
+diff --git a/src/mach/_cuda_impl.pyi b/src/mach/_cuda_impl.pyi
+index d99a012..05ad7d1 100644
+--- a/src/mach/_cuda_impl.pyi
++++ b/src/mach/_cuda_impl.pyi
+@@ -37,0 +38 @@ def beamform(
++    synchronize: bool = True,
+@@ -52,0 +54 @@ def beamform(
++    synchronize: bool = True,
+diff --git a/src/mach/kernel.cu b/src/mach/kernel.cu
+index 41063d9..e2985e8 100644
+--- a/src/mach/kernel.cu
++++ b/src/mach/kernel.cu
+@@ -741 +741,2 @@ void _beamform_impl(
+-    InterpolationType interp_type
++    InterpolationType interp_type,
++    bool synchronize
+@@ -883,2 +884,8 @@ void _beamform_impl(
+-    // Wait for kernel to complete
+-    checkCudaErrors(cudaDeviceSynchronize());
++    // Synchronous calls preserve the public API's existing completion guarantee.
++    // Async calls are restricted to caller-owned CUDA arrays; callers must keep
++    // those arrays alive and order any consumers on this stream until completion.
++    if (synchronize) {
++        checkCudaErrors(cudaDeviceSynchronize());
++    } else {
++        checkCudaErrors(cudaPeekAtLastError());
++    }
+@@ -890 +897,2 @@ void _beamform_impl(
+-    checkCudaErrors(cudaEventSynchronize(stop));
++    if (synchronize) {
++        checkCudaErrors(cudaEventSynchronize(stop));
+@@ -892,4 +900,5 @@ void _beamform_impl(
+-    // Calculate and print elapsed time
+-    float milliseconds = 0;
+-    checkCudaErrors(cudaEventElapsedTime(&milliseconds, start, stop));
+-    std::cout << "Kernel execution time: " << milliseconds << " ms" << std::endl;
++        // Calculate and print elapsed time
++        float milliseconds = 0;
++        checkCudaErrors(cudaEventElapsedTime(&milliseconds, start, stop));
++        std::cout << "Kernel execution time: " << milliseconds << " ms" << std::endl;
++    }
+@@ -1055 +1064,2 @@ void beamform(
+-    InterpolationType interp_type
++    InterpolationType interp_type,
++    bool synchronize
+@@ -1077,0 +1088,6 @@ void beamform(
++    if (!synchronize && !all_cuda) {
++        throw std::invalid_argument(
++            "synchronize=False requires all inputs and output to be CUDA-resident; "
++            "the caller must retain these arrays until GPU work completes."
++        );
++    }
+@@ -1089 +1105 @@ void beamform(
+-                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type);
++                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type, synchronize);
+@@ -1095 +1111 @@ void beamform(
+-                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type);
++                f_number, rx_start_s, sampling_freq_hz, sound_speed_m_s, modulation_freq_hz, tukey_alpha, interp_type, synchronize);
+@@ -1182 +1198,2 @@ void beamform(
+-            interp_type
++            interp_type,
++            true
+@@ -1201 +1218,2 @@ void beamform(
+-            interp_type
++            interp_type,
++            true
+@@ -1251 +1269,2 @@ NB_MODULE(_cuda_impl, m) {
+-        "interp_type"_a = InterpolationType::Linear);
++        "interp_type"_a = InterpolationType::Linear,
++        "synchronize"_a = true);
+@@ -1265 +1284,2 @@ NB_MODULE(_cuda_impl, m) {
+-        "interp_type"_a = InterpolationType::Linear);
++        "interp_type"_a = InterpolationType::Linear,
++        "synchronize"_a = true);
+diff --git a/src/mach/kernel.py b/src/mach/kernel.py
+index c27a35a..a618d00 100644
+--- a/src/mach/kernel.py
++++ b/src/mach/kernel.py
+@@ -35,0 +36 @@ def beamform(  # noqa: C901
++    synchronize: bool = True,
+@@ -104,0 +106,5 @@ def beamform(  # noqa: C901
++        synchronize:
++            Wait for GPU work before returning. Set to False only when all arrays are
++            CUDA-resident, correctly typed, and contiguous. The kernel is enqueued on
++            CUDA's default stream; retain every input and output array and order any
++            dependent work after it on that stream.
+@@ -213,0 +220,26 @@ def beamform(  # noqa: C901
++    # The asynchronous native path returns before the kernel finishes. Do not allow
++    # implicit casts or contiguity fixes to create temporary arrays whose lifetime
++    # would end as soon as this wrapper returns.
++    if not synchronize:
++        is_iq_input = channel_data.dtype in (xp_data.complex64, xp_data.complex128)
++        expected_channel_dtype = xp_data.complex64 if is_iq_input else xp_data.float32
++        async_inputs = (
++            (channel_data, expected_channel_dtype, "channel_data"),
++            (rx_coords_m, xp_coords.float32, "rx_coords_m"),
++            (scan_coords_m, xp_grid.float32, "scan_coords_m"),
++            (tx_wave_arrivals_s, xp_idt.float32, "tx_wave_arrivals_s"),
++        )
++        for array, expected_dtype, name in async_inputs:
++            if array.dtype != expected_dtype:
++                raise ValueError(
++                    f"synchronize=False requires {name} to already have dtype {expected_dtype}; "
++                    "convert it explicitly and retain the converted array until GPU work completes."
++                )
++            if not is_contiguous(cast(Array, array)):
++                raise ValueError(
++                    f"synchronize=False requires {name} to be contiguous; "
++                    "make a contiguous array and retain it until GPU work completes."
++                )
++        if out is not None and not is_contiguous(cast(Array, out)):
++            raise ValueError("synchronize=False requires out to be contiguous")
++
+@@ -286,0 +319 @@ def beamform(  # noqa: C901
++        synchronize=synchronize,
