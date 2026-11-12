@@ -184,5 +184,6 @@
     "Scheduled replay throughput peaks at B=8 (about 1463 accepted frames/s), about 2.4x the fresh B=1 control.",
     "At every streaming batch size, all accepted frames miss both deadlines; drops plus late completions equal all 8192 offered frames.",
     "No streaming trial accepted the complete replay, so streaming image RMSE is unavailable; partial power maps are excluded."
-  ]
+  ],
+  "artifact_scope": "Aggregated Colab T4 metrics are stored here. The T4 produced partial power maps, which are omitted from local results because no trial accepted the complete replay."
 }
