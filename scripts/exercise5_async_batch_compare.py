@@ -46,7 +46,10 @@ def beamform_power(runtime: dict[str, Any], batch_size: int, mode: str) -> np.nd
     beamform = runtime["beamform"]
     geometry = runtime["geometry"]
     workload = runtime["workload"]
-    inputs = cp.ascontiguousarray(runtime["channel_data"][:, :, :batch_size])
+    inputs = cp.asarray(
+        np.ascontiguousarray(runtime["channel_data"][:, :, :batch_size]),
+        dtype=cp.complex64,
+    )
     cp.cuda.Device().synchronize()
     kwargs = {
         "channel_data": inputs,
