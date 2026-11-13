@@ -105,7 +105,7 @@ fig.text(
 fig.text(
     0.5,
     0.065,
-    "p95 is acquisition-arrival to output completion. Async improves batch throughput, while B=8 and B=16 p95 latency rises versus the same-run synchronous-call baseline.",
+    "p95 is arrival-to-output for accepted frames only. Async improves batch throughput, while B=8 and B=16 p95 latency rises versus the same-run synchronous-call baseline.",
     ha="center",
     fontsize=8.5,
     color="#444",
