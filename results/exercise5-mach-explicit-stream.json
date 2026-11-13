@@ -1,0 +1,98 @@
+{
+  "mach_async_prototype": true,
+  "explicit_stream_prototype": true,
+  "device": "b'Tesla T4'",
+  "mach_version": "0.2.1",
+  "modes": [
+    "overlapped",
+    "synchronous_default",
+    "async",
+    "async_explicit_stream"
+  ],
+  "source_frame_count": 32,
+  "accuracy_check": {
+    "rate_hz": 200,
+    "offered_frames": 512,
+    "reference_mode": "synchronous_default",
+    "results": {
+      "overlapped": {
+        "all_frames_accepted": true,
+        "relative_rmse_vs_synchronous_default": 0.0
+      },
+      "synchronous_default": {
+        "all_frames_accepted": true,
+        "relative_rmse_vs_synchronous_default": 0.0
+      },
+      "async": {
+        "all_frames_accepted": true,
+        "relative_rmse_vs_synchronous_default": 0.0
+      },
+      "async_explicit_stream": {
+        "all_frames_accepted": true,
+        "relative_rmse_vs_synchronous_default": 0.0
+      }
+    }
+  },
+  "scheduled_pipeline": {
+    "rate_hz": 10000,
+    "offered_frames": 2048,
+    "results": {
+      "overlapped": {
+        "mode": "overlapped",
+        "requested_rate_hz": 10000,
+        "offered_frames": 2048,
+        "accepted_frames": 96,
+        "dropped_frames": 1952,
+        "deadline_misses": 96,
+        "failure_fraction": 1.0,
+        "trial_wall_s": 0.218108243,
+        "accepted_frames_per_s": 440.14842666904616,
+        "latency_p95_ms": 24.72539225,
+        "h2d_event_p50_ms": 0.058320000767707825,
+        "gpu_beamform_power_p50_ms": 1.7159039974212646
+      },
+      "synchronous_default": {
+        "mode": "synchronous_default",
+        "requested_rate_hz": 10000,
+        "offered_frames": 2048,
+        "accepted_frames": 119,
+        "dropped_frames": 1929,
+        "deadline_misses": 119,
+        "failure_fraction": 1.0,
+        "trial_wall_s": 0.21697457,
+        "accepted_frames_per_s": 548.4513692088432,
+        "latency_p95_ms": 17.456037499999997,
+        "h2d_event_p50_ms": 0.05696000158786774,
+        "gpu_beamform_power_p50_ms": 1.468991994857788
+      },
+      "async": {
+        "mode": "async",
+        "requested_rate_hz": 10000,
+        "offered_frames": 2048,
+        "accepted_frames": 212,
+        "dropped_frames": 1836,
+        "deadline_misses": 212,
+        "failure_fraction": 1.0,
+        "trial_wall_s": 0.211621704,
+        "accepted_frames_per_s": 1001.787604923548,
+        "latency_p95_ms": 11.003411,
+        "h2d_event_p50_ms": 0.05601599998772144,
+        "gpu_beamform_power_p50_ms": 0.9205600023269653
+      },
+      "async_explicit_stream": {
+        "mode": "async_explicit_stream",
+        "requested_rate_hz": 10000,
+        "offered_frames": 2048,
+        "accepted_frames": 195,
+        "dropped_frames": 1853,
+        "deadline_misses": 195,
+        "failure_fraction": 1.0,
+        "trial_wall_s": 0.212764681,
+        "accepted_frames_per_s": 916.5054983914365,
+        "latency_p95_ms": 12.311630699999998,
+        "h2d_event_p50_ms": 0.05539200082421303,
+        "gpu_beamform_power_p50_ms": 0.8441920280456543
+      }
+    }
+  }
+}
