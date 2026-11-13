@@ -322,7 +322,7 @@ index c27a35a..99c1063 100644
      else:
          # Validate output array dtype matches input
          expected_dtype = xp_data.complex64 if is_complex else xp_data.float32
-@@ -268,22 +324,63 @@ def beamform(  # noqa: C901
+@@ -268,22 +324,70 @@ def beamform(  # noqa: C901
  
      assert modulation_freq_hz is not None
  
@@ -349,16 +349,23 @@ index c27a35a..99c1063 100644
 +        if stream_device_id not in (-1, devices[0]):
 +            raise ValueError("stream and arrays must be on the same CUDA device")
 +
-+        def no_sync_dlpack(array: Array) -> object:
-+            try:
-+                return array.__dlpack__(stream=-1)
-+            except TypeError as exc:
-+                raise TypeError(
-+                    "explicit-stream arrays must support __dlpack__(stream=-1); "
-+                    "the caller is responsible for stream dependencies"
-+                ) from exc
++        class _NoSyncDLPack:
++            def __init__(self, array: Array) -> None:
++                self.array = array
 +
-+        native_arrays = {name: no_sync_dlpack(array) for array, name in stream_arrays}
++            def __dlpack_device__(self) -> tuple[int, int]:
++                return self.array.__dlpack_device__()
++
++            def __dlpack__(self, stream: int | None = None) -> object:
++                try:
++                    return self.array.__dlpack__(stream=-1)
++                except TypeError as exc:
++                    raise TypeError(
++                        "explicit-stream arrays must support __dlpack__(stream=-1); "
++                        "the caller is responsible for stream dependencies"
++                    ) from exc
++
++        native_arrays = {name: _NoSyncDLPack(array) for array, name in stream_arrays}
 +    else:
 +        native_arrays = {
 +            "channel_data": channel_data,
