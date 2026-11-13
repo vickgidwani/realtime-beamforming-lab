@@ -1,0 +1,103 @@
+{
+  "experiment": "Exercise 5 B=8 two-compute-stream capacity test",
+  "runtime": {
+    "device": "Tesla T4",
+    "sm_count": 40,
+    "mach_version": "0.2.1",
+    "git_revision": "555520f36725f0d6744b98ede7cff565756aa934",
+    "timestamp_utc": "2026-11-13T21:13:10.449464+00:00"
+  },
+  "configuration": {
+    "dataset": "PyMUST example PWI_disk.mat",
+    "batch_size_per_stream_call": 8,
+    "frame_count": 32,
+    "beamform_calls_per_path": 4,
+    "concurrent_compute_streams": 2,
+    "warmup_rounds_per_path": 1,
+    "measured_repeats_per_path": 9,
+    "input_and_geometry_resident_on_gpu": true,
+    "includes_per_call_device_chunk_copy_and_power_reduction": true,
+    "includes_host_to_device_replay": false
+  },
+  "comparison": {
+    "serial": {
+      "gpu_ms_median": 11.173919677734375,
+      "wall_ms_median": 11.369611999953122,
+      "effective_acquisitions_per_s": 2814.5199677994233,
+      "max_relative_rmse_vs_full_ensemble": 0.0,
+      "gpu_ms_samples": [
+        11.157504081726074,
+        11.210111618041992,
+        10.847711563110352,
+        10.874815940856934,
+        11.331040382385254,
+        11.173919677734375,
+        10.916383743286133,
+        11.315103530883789,
+        11.231648445129395
+      ],
+      "wall_ms_samples": [
+        11.327825999956076,
+        11.369611999953122,
+        10.989902000005713,
+        11.037615999953232,
+        11.477455999965969,
+        11.377100000004248,
+        11.07327699992311,
+        11.478027999942242,
+        11.375632999943264
+      ],
+      "relative_rmse_samples": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "two_compute_streams": {
+      "gpu_ms_median": 11.041343688964844,
+      "wall_ms_median": 11.267750000001797,
+      "effective_acquisitions_per_s": 2839.963612965756,
+      "max_relative_rmse_vs_full_ensemble": 3.577519436248622e-08,
+      "gpu_ms_samples": [
+        11.041343688964844,
+        11.255935668945312,
+        10.944767951965332,
+        11.191167831420898,
+        10.960927963256836,
+        11.317279815673828,
+        11.00592041015625,
+        11.122688293457031,
+        10.965632438659668
+      ],
+      "wall_ms_samples": [
+        11.267750000001797,
+        11.428398000020934,
+        11.100699000053282,
+        11.375093999959063,
+        11.14885200001936,
+        11.557546999938495,
+        11.172697999995762,
+        11.307031999990613,
+        11.11402399999406
+      ],
+      "relative_rmse_samples": [
+        3.577519436248622e-08,
+        3.577519436248622e-08,
+        3.577519436248622e-08,
+        3.577519436248622e-08,
+        3.577519436248622e-08,
+        3.577519436248622e-08,
+        3.577519436248622e-08,
+        3.577519436248622e-08,
+        3.577519436248622e-08
+      ]
+    }
+  },
+  "two_stream_wall_time_speedup": 1.0090401366689277
+}
