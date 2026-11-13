@@ -90,6 +90,12 @@ def main() -> None:
     parser.add_argument("--queue-capacity", type=int, default=8)
     parser.add_argument("--batch-sizes", default="4,8,16")
     parser.add_argument("--modes", default=",".join(MODES))
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path("results/exercise5-mach-batch-async-10khz.json"),
+        help="JSON output path, relative to the repository root unless absolute",
+    )
     args = parser.parse_args()
     batch_sizes = tuple(int(value) for value in args.batch_sizes.split(","))
     modes = tuple(value.strip() for value in args.modes.split(","))
@@ -185,7 +191,8 @@ def main() -> None:
         "batch_accuracy_relative_rmse_vs_synchronous": accuracy,
         "results": results,
     }
-    output_path = ROOT / "results" / "exercise5-mach-batch-async-10khz.json"
+    output_path = args.output if args.output.is_absolute() else ROOT / args.output
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, indent=2) + "\n")
     print("\nComparison summary:")
     print(json.dumps(output, indent=2), flush=True)
