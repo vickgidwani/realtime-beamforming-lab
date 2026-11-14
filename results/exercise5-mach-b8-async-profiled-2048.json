@@ -1,0 +1,47 @@
+{
+  "experiment": "Exercise 5 batch plus asynchronous Mach comparison",
+  "runtime": {
+    "device": "Tesla T4",
+    "mach_version": "0.2.1",
+    "git_revision": "37b656d63dfdaa73667cb09b0bcb0944c68fa807"
+  },
+  "configuration": {
+    "requested_rate_hz": 10000,
+    "offered_frames": 2048,
+    "queue_capacity_frames": 8,
+    "batch_sizes": [
+      8
+    ],
+    "modes": [
+      "async"
+    ],
+    "producer_kind": "cython"
+  },
+  "batch_accuracy_relative_rmse_vs_synchronous": {
+    "B8/async": 0.0
+  },
+  "results": [
+    {
+      "mode": "async",
+      "batch_size_target": 8,
+      "producer_kind": "cython",
+      "requested_rate_hz": 10000,
+      "offered_frames": 2048,
+      "accepted_frames": 16,
+      "dropped_frames": 2032,
+      "batch_deadline_miss_frames": 16,
+      "strict_frame_deadline_miss_frames": 16,
+      "batch_deadline_failure_share_pct": 100.0,
+      "strict_frame_failure_share_pct": 100.0,
+      "trial_wall_s": 0.261718269,
+      "completed_frames_per_s": 61.13444071418645,
+      "latency_p95_ms": 260.26008,
+      "scheduled_age_p95_ms": 260.35215500000004,
+      "batch_wall_p50_ms": 130.0732845,
+      "h2d_event_p50_ms_per_batch": 0.3108479976654053,
+      "gpu_event_p50_ms_per_batch": 124.56990146636963,
+      "batch_deadline_p50_ms": 0.8,
+      "image_relative_rmse": null
+    }
+  ]
+}
