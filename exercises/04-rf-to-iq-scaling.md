@@ -1,6 +1,6 @@
 # Exercise 4: RF analytic and baseband conversion
 
-**Status: notebook prepared; Colab T4 run pending.** The notebook compares two ways to form complex RF data, CPU and GPU implementations, and scaling across measured and synthetic workloads.
+**Recorded on a Tesla T4.** The [results](../results/exercise4-rf-to-iq.json) cover analytic RF and baseband IQ on measured phantom data and a synthetic scaling case. See the [companion notebook](04-rf-to-iq-scaling.ipynb) for the experiment.
 
 ## Questions
 

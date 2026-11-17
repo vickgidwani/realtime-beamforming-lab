@@ -1,6 +1,17 @@
-# Realtime Beamforming Lab
+# Realtime Ultrasound Pipeline — Beamforming and Streaming
 
-A personal exploration of latency-sensitive ultrasound processing. The project follows the raw-channel-data path that feeds functional ultrasound imaging (fUSI): RF-to-IQ conversion, image reconstruction with GPU delay-and-sum beamforming, and a Power Doppler-style output. It uses public phantom data so those computational stages can be studied without a brain recording or ultrasound hardware.
+Practice latency-sensitive ultrasound processing with public phantom data. The lab covers RF-to-IQ conversion, CUDA delay-and-sum beamforming, and Power Doppler-style reduction. Start with the [T4 replay and deadline results](exercises/05-streaming-tail-latency.md#main-results). For Bridge Realtime prep, the next exercise is [GPU-resident inference from phantom replay](exercises/07-gpu-resident-decoder.md).
+
+## Status
+
+- **Recorded.** Exercises 1–5 cover transfers, device-side reduction, compounding, RF conversion, and scheduled phantom replay.
+- **Planned.** Exercise 6 adds a reference CUDA DAS kernel. Exercise 7 keeps the handoff from phantom replay to stand-in inference on the GPU. See the [exercise index](exercises/README.md).
+
+## Quick review
+
+After [CUDA setup](#requirements), run `beamform-lab benchmark --dataset pymust --mode cupy --runs 2 --warmup 0 --batch-size 32` from this lab directory on Colab or an NVIDIA VM. Check that the phantom run emits the output feature and timing report. Use [Exercise 1](exercises/01-transfer-path.md) if you want to compare the saved power maps.
+
+For the interview, open the [10 kHz plot](results/exercise5-batching-10khz.png) and [raw report](results/exercise5-batching-10khz.json). On the T4, batch 8 accepted about 1,463 frames/sec versus 607 for batch 1. Every offered frame still dropped or completed late. The reported frame age starts at the scheduled arrival and ends when the host observes batch completion after GPU reduction. Explain how batch fill and producer lateness affect that age and why accepted throughput alone hides stale work. The [replay notes](exercises/05-streaming-tail-latency.md#follow-up-microbatch-beamforming-at-10-khz) define the deadlines and failure denominator.
 
 ## How fUSI processing works
 
