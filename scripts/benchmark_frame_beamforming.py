@@ -2,13 +2,13 @@
 
 From the repository root, run the correctness and scheduled-throughput checks:
 
-    python scripts/exercise5_async_compare.py
+    python scripts/benchmark_frame_beamforming.py
 
 Capture a short CUDA/NVTX trace for the saturated 10 kHz trials:
 
     nsys profile --trace=cuda,nvtx,osrt --sample=none \
         --output=artifacts/exercise5-mach-async --force-overwrite=true \
-        python scripts/exercise5_async_compare.py --trace-only
+        python scripts/benchmark_frame_beamforming.py --trace-only
 
 The runner executes only the notebook's configuration, runtime, data, and
 implementation cells. Cython compilation and a CUDA warmup happen before the
@@ -20,15 +20,18 @@ only the latter comparison and does not overwrite result files.
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import version
 import json
 import os
 import sys
 from pathlib import Path
+from beamforming_lab.streaming_beamformer import StreamingBeamformer
+from beamforming_lab.streaming import load_cython_scheduler
 from typing import Any
 
 import numpy as np
 
-from exercise5_scheduled_trace import ROOT, load_notebook_runtime
+from trace_frame_replay import ROOT
 
 
 BASE_MODES = ("overlapped", "synchronous_default", "async")
@@ -59,13 +62,13 @@ def summarize(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def run_scenario(
-    runtime: dict[str, Any], rate_hz: int, frames: int, modes: tuple[str, ...]
+    runtime: StreamingBeamformer, rate_hz: int, frames: int, modes: tuple[str, ...]
 ) -> dict[str, dict[str, Any]]:
-    runtime["replay_frames"] = frames
+    runtime.replay_frames = frames
     runs = {}
     for mode in modes:
         print(f"Running {mode}: {frames:,} frames at {rate_hz:,} Hz", flush=True)
-        result = runtime["run_trial"](mode, rate_hz, producer_kind="cython")
+        result = runtime.run_trial(mode, rate_hz, producer_kind="cython")
         runs[mode] = result
         print(json.dumps(summarize(result), indent=2), flush=True)
     return runs
@@ -93,10 +96,10 @@ def main() -> None:
         parser.error("frame counts must be positive")
 
     os.chdir(ROOT)
-    runtime = load_notebook_runtime()
-    cp = runtime["cp"]
-    frame_count = int(runtime["frame_count"])
-    full_replay_frames = int(runtime["replay_frames"])
+    runtime = StreamingBeamformer()
+    cp = runtime.cp
+    frame_count = int(runtime.frame_count)
+    full_replay_frames = int(runtime.replay_frames)
     for label, frames in (
         ("--accuracy-frames", args.accuracy_frames),
         ("--pipeline-frames", args.pipeline_frames),
@@ -108,8 +111,8 @@ def main() -> None:
             )
 
     # Keep compilation and the first launch outside the measured trials.
-    runtime["_load_cython_scheduler"]()
-    runtime["_gpu_warmup"](explicit_stream=args.include_explicit_stream)
+    load_cython_scheduler()
+    runtime.warmup(explicit_stream=args.include_explicit_stream)
     cp.cuda.Device().synchronize()
     modes = BASE_MODES + ((EXPLICIT_STREAM_MODE,) if args.include_explicit_stream else ())
 
@@ -117,7 +120,7 @@ def main() -> None:
         "mach_async_prototype": True,
         "explicit_stream_prototype": args.include_explicit_stream,
         "device": cp.cuda.runtime.getDeviceProperties(cp.cuda.Device().id)["name"],
-        "mach_version": runtime["package_metadata"].version("mach-beamform"),
+        "mach_version": version("mach-beamform"),
         "modes": list(modes),
         "source_frame_count": frame_count,
     }

@@ -2,52 +2,36 @@
 
 Run from the repository root after building the patched Mach checkout:
 
-    python scripts/exercise5_async_batch_compare.py
+    python scripts/benchmark_batched_beamforming.py
 """
 
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import version
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from beamforming_lab.streaming_beamformer import StreamingBeamformer
+from beamforming_lab.streaming import load_cython_scheduler
 
 import numpy as np
 
-from exercise5_scheduled_trace import NOTEBOOK, ROOT, load_notebook_runtime
+from trace_frame_replay import ROOT
 
 
 MODES = ("overlapped", "async", "async_explicit_stream")
 
 
-def load_batch_runtime() -> dict[str, Any]:
-    runtime = load_notebook_runtime()
-    notebook = json.loads(NOTEBOOK.read_text())
-    batch_cell = next(
-        (
-            cell
-            for cell in notebook["cells"]
-            if cell.get("cell_type") == "code" and cell.get("id") == "ex5-batch-implementation"
-        ),
-        None,
-    )
-    if batch_cell is None:
-        raise RuntimeError("Notebook batch implementation cell was not found")
-    source = "".join(batch_cell["source"])
-    exec(compile(source, f"{NOTEBOOK.name}:ex5-batch-implementation", "exec"), runtime)
-    return runtime
-
-
-def beamform_power(runtime: dict[str, Any], batch_size: int, mode: str) -> np.ndarray:
-    cp = runtime["cp"]
-    beamform = runtime["beamform"]
-    geometry = runtime["geometry"]
-    workload = runtime["workload"]
+def beamform_power(runtime: StreamingBeamformer, batch_size: int, mode: str) -> np.ndarray:
+    cp = runtime.cp
+    beamform = runtime.beamform
+    geometry = runtime.geometry
+    workload = runtime.workload
     inputs = cp.asarray(
-        np.ascontiguousarray(runtime["channel_data"][:, :, :batch_size]),
+        np.ascontiguousarray(runtime.channel_data[:, :, :batch_size]),
         dtype=cp.complex64,
     )
     cp.cuda.Device().synchronize()
@@ -96,6 +80,31 @@ def main() -> None:
         default=Path("results/exercise5-mach-batch-async-10khz.json"),
         help="JSON output path, relative to the repository root unless absolute",
     )
+    parser.add_argument(
+        "--trace-stages",
+        action="store_true",
+        help="Emit per-batch host staging, submit, release, and wait NVTX markers",
+    )
+    parser.add_argument(
+        "--packer", choices=("strided", "one_pass"), default="strided",
+        help="Select the host staging implementation",
+    )
+    parser.add_argument(
+        "--concurrent-staging", action="store_true",
+        help="Pack on a worker using a bounded pool of pinned host buffers",
+    )
+    parser.add_argument(
+        "--reuse-beamform-output", action="store_true",
+        help="Preallocate per-slot Mach outputs and arguments for explicit-stream replay",
+    )
+    parser.add_argument(
+        "--trace-mach", action="store_true",
+        help="Trace output preparation and native submission inside patched Mach",
+    )
+    parser.add_argument(
+        "--prepare-mach", action="store_true",
+        help="Validate and prepare one Mach launch per reusable device slot",
+    )
     args = parser.parse_args()
     batch_sizes = tuple(int(value) for value in args.batch_sizes.split(","))
     modes = tuple(value.strip() for value in args.modes.split(","))
@@ -106,11 +115,18 @@ def main() -> None:
     if not modes or any(mode not in MODES for mode in modes):
         parser.error(f"modes must be selected from {', '.join(MODES)}")
 
+    if args.reuse_beamform_output and modes != ("async_explicit_stream",):
+        parser.error("--reuse-beamform-output requires --modes async_explicit_stream")
+    if args.prepare_mach and not args.reuse_beamform_output:
+        parser.error("--prepare-mach requires --reuse-beamform-output")
+    if args.trace_mach and not args.trace_stages:
+        parser.error("--trace-mach requires --trace-stages")
+
     os.chdir(ROOT)
-    runtime = load_batch_runtime()
-    cp = runtime["cp"]
-    frame_count = int(runtime["frame_count"])
-    full_replay_frames = int(runtime["replay_frames"])
+    runtime = StreamingBeamformer()
+    cp = runtime.cp
+    frame_count = int(runtime.frame_count)
+    full_replay_frames = int(runtime.replay_frames)
     if args.frames > full_replay_frames or args.frames % frame_count:
         parser.error(
             f"--frames must be a multiple of the {frame_count}-frame source "
@@ -119,9 +135,9 @@ def main() -> None:
     if any(size > frame_count for size in batch_sizes):
         parser.error(f"batch sizes may not exceed the {frame_count}-frame source")
 
-    runtime["replay_frames"] = args.frames
-    runtime["_load_cython_scheduler"]()
-    runtime["_gpu_warmup"](explicit_stream=True)
+    runtime.replay_frames = args.frames
+    load_cython_scheduler()
+    runtime.warmup(explicit_stream=True)
     cp.cuda.Device().synchronize()
 
     accuracy = {}
@@ -139,11 +155,17 @@ def main() -> None:
     for batch_size in batch_sizes:
         for mode in modes:
             print(f"Running B={batch_size}, mode={mode} at {args.rate_hz:,} Hz", flush=True)
-            result = runtime["run_batched_trial"](
+            result = runtime.run_batched_trial(
                 batch_size,
                 input_rate_hz=args.rate_hz,
                 queue_capacity=args.queue_capacity,
                 mode=mode,
+                trace_stages=args.trace_stages,
+                packer=args.packer,
+                concurrent_staging=args.concurrent_staging,
+                reuse_beamform_output=args.reuse_beamform_output,
+                prepare_mach=args.prepare_mach,
+                trace_mach=args.trace_mach,
             )
             row = {
                 key: result[key]
@@ -164,6 +186,7 @@ def main() -> None:
                     "latency_p95_ms",
                     "scheduled_age_p95_ms",
                     "batch_wall_p50_ms",
+                    "host_stage_p50_ms_per_batch",
                     "h2d_event_p50_ms_per_batch",
                     "gpu_event_p50_ms_per_batch",
                     "batch_deadline_p50_ms",
@@ -177,7 +200,7 @@ def main() -> None:
         "experiment": "Exercise 5 batch plus asynchronous Mach comparison",
         "runtime": {
             "device": cp.cuda.runtime.getDeviceProperties(cp.cuda.Device().id)["name"].decode(),
-            "mach_version": runtime["package_metadata"].version("mach-beamform"),
+            "mach_version": version("mach-beamform"),
             "git_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         },
         "configuration": {
@@ -187,6 +210,12 @@ def main() -> None:
             "batch_sizes": list(batch_sizes),
             "modes": list(modes),
             "producer_kind": "cython",
+            "packer": args.packer,
+            "concurrent_staging": args.concurrent_staging,
+            "trace_stages": args.trace_stages,
+            "reuse_beamform_output": args.reuse_beamform_output,
+            "prepare_mach": args.prepare_mach,
+            "trace_mach": args.trace_mach,
         },
         "batch_accuracy_relative_rmse_vs_synchronous": accuracy,
         "results": results,

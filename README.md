@@ -4,8 +4,8 @@ Practice latency-sensitive ultrasound processing with public phantom data. The l
 
 ## Status
 
-- **Recorded.** Exercises 1–5 cover transfers, device-side reduction, compounding, RF conversion, and scheduled phantom replay.
-- **Planned.** Exercise 6 adds a reference CUDA DAS kernel. Exercise 7 keeps the handoff from phantom replay to stand-in inference on the GPU. See the [exercise index](exercises/README.md).
+- **Recorded.** Exercises 1–5 cover transfers, device-side reduction, compounding, RF conversion, and scheduled phantom replay. Exercise 7 has a 1 kHz GPU-resident inference baseline and missing-frame and late-output checks.
+- **Planned.** Exercise 6 adds a reference CUDA DAS kernel. Exercise 7's shared-GPU contention comparison and timed RF follow-up are open. See the [exercise index](exercises/README.md).
 
 ## Quick review
 
@@ -81,6 +81,30 @@ python -m pip install -e '.[gpu]'
 The `gpu` extra uses the CUDA 12 CuPy wheel for Linux GPU hosts. The `gpu-colab` extra uses the CUDA 13 wheel available in the current Colab GPU runtime. Both include mach's example dependencies: PyMUST for RF-to-IQ conversion and `pyuff-ustb` for PICMUS UFF input. Keeping the CuPy variants separate avoids installing both runtime wheels in one environment.
 
 ## Run it
+
+### Google Compute Engine: provision or rebuild an L4 VM
+
+Run [`scripts/setup_gpu_vm.sh`](scripts/setup_gpu_vm.sh) locally with `gcloud` authenticated. Keep an inference-serving checkout with the Exercise 7 embedding exporter next to this lab, or pass `--inference-source /path/to/inference-serving-lab`.
+
+```bash
+# Create a single-L4 VM on an existing subnet with SSH access.
+scripts/setup_gpu_vm.sh PROJECT ZONE INSTANCE --create-on-subnet SUBNET
+
+# Set up or repair the lab environment on an existing running VM.
+scripts/setup_gpu_vm.sh PROJECT ZONE INSTANCE
+```
+
+The provisioner uses a `g2-standard-4` with Ubuntu 24.04, CUDA 12.9, and a 50 GB balanced boot disk. It defaults to the `inference-lab-ssh` network tag. Pass `--ssh-tag TAG` if the subnet's network uses a different SSH rule. Creation depends on available L4 quota and zonal hardware capacity.
+
+The script seeds a fresh remote checkout from the local Git commit and preserves an existing checkout. It builds `.venv`, verifies CUDA and Nsight, downloads and checks PyMUST and PICMUS through the lab loaders, exports the pinned Exercise 7 ResNet-50 embedding model, and checks CUDA I/O Binding. The model is under `artifacts/exercise7/`, and setup smoke reports are under `artifacts/provisioning/`. The datasets stay in the SSH user's cache on the boot disk.
+
+For the explicit-stream experiments, add `--patched-mach` to build the pinned patch separately from the stock wheel. On the VM, run from the lab checkout:
+
+```bash
+PYTHONPATH="$PWD/artifacts/mach-async" .venv/bin/python scripts/benchmark_frame_beamforming.py --include-explicit-stream
+```
+
+For profiler commands on the VM, add `/usr/local/cuda/bin` to `PATH`. Copy out run reports before replacing the VM, and stop the instance when you finish using it.
 
 ### Colab: install and verify the pipeline
 

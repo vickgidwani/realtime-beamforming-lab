@@ -10,10 +10,10 @@ The labs are designed to make each performance claim traceable to a baseline, wo
 
 4. [RF analytic and baseband conversion](04-rf-to-iq-scaling.md) — compare Hilbert and mix-and-filter conversion on CPU and GPU across PyMUST and PICMUS. The [T4 results](../results/exercise4-rf-to-iq.json) include an angle sweep and a synthetic scaling case.
 5. [Copy/compute overlap and tail latency](05-streaming-tail-latency.md) — compare serialized and overlapped GPU paths under scheduled phantom replay. The T4 results include queueing, deadlines, drops, and the microbatch follow-up. See also the [Mach stream prototype](../patches/README.md) and [recorded explicit-stream comparison](../results/exercise5-mach-explicit-stream.json).
+7. [GPU-resident inference from phantom replay](07-gpu-resident-decoder.md) — run the 1 kHz L4 baseline and inspect the saved handoff trace, embeddings, and window-policy checks. The shared-GPU contention comparison and GPU-stall drill are follow-ups.
 
 ## Planned exercises
 
-- **Start here for Bridge Realtime.** [Exercise 7 — GPU-resident inference from phantom replay](07-gpu-resident-decoder.md) measures shared-GPU contention and checks recovery from a dropped frame or GPU stall.
 - [Exercise 6 — Custom DAS kernel](06-custom-das-kernel.md) implements and profiles a small CUDA reference kernel before testing memory access and work partitioning against Mach. Image-quality variants are optional.
 
 Dataset sources, transformations, checksums, and attribution notes are documented in [DATA_PROVENANCE.md](../DATA_PROVENANCE.md).

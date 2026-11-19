@@ -1,0 +1,67 @@
+diff --git a/src/mach/kernel.py b/src/mach/kernel.py
+--- a/src/mach/kernel.py
++++ b/src/mach/kernel.py
+@@ -1,5 +1,6 @@
+ """Python bindings and wrapper for the CUDA kernel."""
+
++from collections.abc import Callable
+ from typing import cast
+
+ from array_api_compat import is_writeable_array
+@@ -16,7 +17,7 @@
+ from ._cuda_impl import beamform as nb_beamform  # type: ignore[attr-defined]
+
+ # Export the InterpolationType enum for public use
+-__all__ = ["InterpolationType", "beamform"]
++__all__ = ["InterpolationType", "beamform", "prepare_beamform"]
+
+
+ def beamform(  # noqa: C901
+@@ -36,6 +37,7 @@
+     synchronize: bool = True,
+     stream: object | None = None,
+     trace_submission: bool = False,
++    _prepared: list[Callable[[], Array]] | None = None,
+ ) -> Array:
+     """CUDA ultrasound beamforming with automatic GPU/CPU dispatch.
+
+@@ -420,12 +422,37 @@
+         "synchronize": synchronize,
+         "stream_ptr": stream_ptr,
+     }
++    if _prepared is not None:
++        def launch() -> Array:
++            _submit_beamform(call_kwargs, nvtx)
++            return cast(Array, out)
++
++        _prepared.append(launch)
++    else:
++        _submit_beamform(call_kwargs, nvtx)
++    return cast(Array, out)
++
++
++def _submit_beamform(call_kwargs, nvtx) -> None:
+     if nvtx is not None:
+         nvtx.RangePush("mach/native_submit")
+     try:
+-        nb_beamform(**call_kwargs)  # ty: ignore[no-matching-overload]
++        nb_beamform(**call_kwargs)  # type: ignore[no-matching-overload]
+     finally:
+         if nvtx is not None:
+             nvtx.RangePop()
+
+-    return cast(Array, out)
++
++def prepare_beamform(**kwargs) -> Callable[[], Array]:
++    """Validate and retain a fixed async launch on an explicit CUDA stream.
++
++    Keep all array metadata, storage, and the stream fixed while using the
++    returned callable. The caller orders input writes and output clearing
++    before launch and keeps the buffers alive until all GPU work finishes.
++    The retained adapters create fresh DLPack capsules at each native call.
++    """
++    if kwargs.get("out") is None or kwargs.get("stream") is None or kwargs.get("synchronize") is not False:
++        raise ValueError("Prepared beamforming requires an output, explicit stream, and synchronize=False")
++    prepared: list[Callable[[], Array]] = []
++    beamform(**kwargs, _prepared=prepared)
++    return prepared[0]

@@ -20,79 +20,6 @@ from typing import Any
 import numpy as np
 
 
-_CYTHON_SCHEDULER_SOURCE = r"""
-# cython: language_level=3, boundscheck=False, wraparound=False
-from queue import Full
-
-cdef extern from "time.h":
-    ctypedef struct timespec "struct timespec":
-        long tv_sec
-        long tv_nsec
-    int clock_gettime(int clock_id, timespec *tp) nogil
-    int clock_nanosleep(int clock_id, int flags, const timespec *request, timespec *remaining) nogil
-
-cdef enum:
-    _CLOCK_MONOTONIC = 1
-    _TIMER_ABSTIME = 1
-    _EINTR = 4
-
-cdef int _sleep_until_ns(long long target_ns) noexcept nogil:
-    cdef timespec deadline
-    cdef int rc
-    deadline.tv_sec = <long>(target_ns // 1000000000)
-    deadline.tv_nsec = <long>(target_ns % 1000000000)
-    while True:
-        rc = clock_nanosleep(_CLOCK_MONOTONIC, _TIMER_ABSTIME, &deadline, NULL)
-        if rc == 0:
-            return 0
-        if rc != _EINTR:
-            return rc
-
-cdef long long _monotonic_ns() noexcept nogil:
-    cdef timespec now
-    if clock_gettime(_CLOCK_MONOTONIC, &now) != 0:
-        return -1
-    return <long long>now.tv_sec * 1000000000 + now.tv_nsec
-
-def produce_arrivals(object work_queue, object arrivals, object drops,
-                     int offered_count, int frame_count,
-                     long long trial_start_ns, long long period_ns):
-    cdef int sequence
-    cdef int rc
-    cdef int depth
-    cdef int max_depth = 0
-    cdef long long scheduled_ns
-    cdef long long arrived_ns
-    cdef dict job
-
-    for sequence in range(offered_count):
-        scheduled_ns = trial_start_ns + <long long>sequence * period_ns
-        with nogil:
-            rc = _sleep_until_ns(scheduled_ns)
-            arrived_ns = _monotonic_ns()
-        if rc != 0:
-            raise OSError(rc, "clock_nanosleep failed")
-        if arrived_ns < 0:
-            raise OSError("clock_gettime(CLOCK_MONOTONIC) failed")
-        job = {
-            "sequence": sequence,
-            "frame_index": sequence % frame_count,
-            "scheduled_ns": scheduled_ns,
-            "arrived_ns": arrived_ns,
-            "queue_depth_before_enqueue": work_queue.qsize(),
-        }
-        arrivals.append(job)
-        try:
-            work_queue.put_nowait(job)
-            depth = work_queue.qsize()
-            if depth > max_depth:
-                max_depth = depth
-        except Full:
-            drops.append({**job, "queue_depth_at_drop": work_queue.qsize(),
-                          "reason": "drop_newest_queue_full"})
-    return max_depth
-"""
-
 _CYTHON_SCHEDULER: Any | None = None
 
 
@@ -103,7 +30,7 @@ def load_cython_scheduler() -> Any:
         return _CYTHON_SCHEDULER
     if sys.platform != "linux":
         raise RuntimeError(
-            "The Cython scheduler uses Linux clock_nanosleep and is intended for Colab."
+            "The Cython scheduler uses Linux clock_nanosleep and requires a Linux host."
         )
     try:
         import Cython  # noqa: F401
@@ -118,18 +45,20 @@ def load_cython_scheduler() -> Any:
     if "-D_POSIX_C_SOURCE=200809L" not in cflags:
         config["CFLAGS"] = f"{cflags} -D_POSIX_C_SOURCE=200809L".strip()
 
-    build_key = hashlib.sha256(_CYTHON_SCHEDULER_SOURCE.encode("utf-8")).hexdigest()[:12]
-    build_root = Path(tempfile.gettempdir()) / f"exercise5-cython-scheduler-{build_key}"
+    source = Path(__file__).with_name("native_replay.pyx").read_bytes()
+    build_key = hashlib.sha256(source).hexdigest()[:12]
+    build_root = Path(tempfile.gettempdir()) / f"beamforming-native-replay-{build_key}"
     source_dir = build_root / "source"
     source_dir.mkdir(parents=True, exist_ok=True)
-    source_file = source_dir / "exercise5_native_scheduler.pyx"
-    source_file.write_text(_CYTHON_SCHEDULER_SOURCE)
+    source_file = source_dir / "native_replay.pyx"
+    if not source_file.exists():
+        source_file.write_bytes(source)
     build_dir = build_root / "build"
     pyximport.install(language_level=3, build_dir=str(build_dir))
     if str(source_dir) not in sys.path:
         sys.path.insert(0, str(source_dir))
-    sys.modules.pop("exercise5_native_scheduler", None)
-    _CYTHON_SCHEDULER = importlib.import_module("exercise5_native_scheduler")
+    sys.modules.pop("native_replay", None)
+    _CYTHON_SCHEDULER = importlib.import_module("native_replay")
     return _CYTHON_SCHEDULER
 
 
@@ -141,6 +70,7 @@ def produce_cython_arrivals(
     frame_count: int,
     trial_start_ns: int,
     period_ns: int,
+    omit_sequence: int = -1,
 ) -> int:
     """Emit absolute-time arrivals through the compiled producer."""
     return int(
@@ -152,6 +82,7 @@ def produce_cython_arrivals(
             frame_count,
             trial_start_ns,
             period_ns,
+            omit_sequence,
         )
     )
 

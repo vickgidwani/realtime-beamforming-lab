@@ -2,10 +2,10 @@
 
 Run on the Colab T4 from the repository root:
 
-    python scripts/exercise5_concurrency.py benchmark
+    python scripts/benchmark_beamform_stream_concurrency.py benchmark
     nsys profile --trace=cuda,nvtx,osrt --sample=none \
         --output=artifacts/exercise5-b8-two-compute-streams \
-        --force-overwrite=true python scripts/exercise5_concurrency.py trace
+        --force-overwrite=true python scripts/benchmark_beamform_stream_concurrency.py trace
 
 Both paths process all 32 resident PyMUST IQ acquisitions as four B=8
 beamformer calls. The parallel path distributes two calls to each of two

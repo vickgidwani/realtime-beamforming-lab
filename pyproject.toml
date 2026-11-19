@@ -30,3 +30,6 @@ beamform-lab = "beamforming_lab.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+beamforming_lab = ["*.pyx"]

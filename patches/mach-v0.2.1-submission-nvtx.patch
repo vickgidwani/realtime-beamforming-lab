@@ -1,0 +1,61 @@
+diff --git a/src/mach/kernel.py b/src/mach/kernel.py
+--- a/src/mach/kernel.py
++++ b/src/mach/kernel.py
+@@ -35,6 +35,7 @@
+     interp_type: InterpolationType = InterpolationType.Linear,
+     synchronize: bool = True,
+     stream: object | None = None,
++    trace_submission: bool = False,
+ ) -> Array:
+     """CUDA ultrasound beamforming with automatic GPU/CPU dispatch.
+
+@@ -187,6 +188,13 @@
+         ... )
+     """
+
++    nvtx = None
++    if trace_submission:
++        from cupy.cuda import nvtx
++
++        if not nvtx.available:
++            raise RuntimeError("Mach submission tracing requires CuPy with NVTX support")
++
+     # Check input type and dtype before trying to convert dtypes
+     # shape should be checked in the kernel
+     if not isinstance(channel_data, cast(type, Num[Array, "..."])):
+@@ -306,11 +314,17 @@
+     tx_wave_arrivals_s = try_contiguous(tx_wave_arrivals_s)
+
+     if out is None:
+-        if stream is None:
+-            out = xp_data.zeros((n_scan, nframes), dtype=output_dtype)
+-        else:
+-            with stream:  # type: ignore[attr-defined]
++        if nvtx is not None:
++            nvtx.RangePush("mach/output_allocate_and_zero")
++        try:
++            if stream is None:
+                 out = xp_data.zeros((n_scan, nframes), dtype=output_dtype)
++            else:
++                with stream:  # type: ignore[attr-defined]
++                    out = xp_data.zeros((n_scan, nframes), dtype=output_dtype)
++        finally:
++            if nvtx is not None:
++                nvtx.RangePop()
+     else:
+         # Validate output array dtype matches input
+         expected_dtype = xp_data.complex64 if is_complex else xp_data.float32
+@@ -388,6 +402,12 @@
+         "synchronize": synchronize,
+         "stream_ptr": stream_ptr,
+     }
+-    nb_beamform(**call_kwargs)  # ty: ignore[no-matching-overload]
++    if nvtx is not None:
++        nvtx.RangePush("mach/native_submit")
++    try:
++        nb_beamform(**call_kwargs)  # ty: ignore[no-matching-overload]
++    finally:
++        if nvtx is not None:
++            nvtx.RangePop()
+
+     return cast(Array, out)

@@ -27,7 +27,23 @@ checkout of the pinned source tag:
 ```bash
 git checkout --detach 237d38158bf299f67b46d71eaba2cdeac9c6f02a
 git apply /path/to/realtime-beamforming-lab/patches/mach-v0.2.1-explicit-stream-async.patch
+git apply /path/to/realtime-beamforming-lab/patches/mach-v0.2.1-submission-nvtx.patch
+git apply /path/to/realtime-beamforming-lab/patches/mach-v0.2.1-wrapper-nvtx.patch
+git apply /path/to/realtime-beamforming-lab/patches/mach-v0.2.1-prepare-beamform.patch
 ```
+
+The second patch adds opt-in CuPy NVTX ranges for allocating and clearing the
+output and calling the native binding. The replay wraps the full Mach call in
+its own range. The third patch adds ranges for Python input checks and array
+preparation, output checks, and DLPack adapter setup. For the batch runner,
+enable the inner ranges with `--trace-stages --trace-mach`. The VM provisioner's
+`--patched-mach` option applies the patch stack before building the wheel.
+
+The fourth patch adds `mach.kernel.prepare_beamform` for fixed CUDA arrays,
+an explicit stream, and a caller-owned output. It validates the arrays and
+retains the DLPack adapters once. Each submission still enters the native
+binding with fresh capsules. Keep array storage and metadata fixed, and order
+input writes, output clearing, and buffer reuse on the CUDA streams.
 
 Build and numerical/stream-ordering checks are recorded in Exercise 5 after
 the prototype has been run on the Colab T4.
